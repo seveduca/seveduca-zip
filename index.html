@@ -706,33 +706,34 @@ class AppController {
     }
 
     async loadData() {
-        try {
-            // Mostrar estado de carga en la UI (opcional)
-            const ul = document.querySelector('.course-list');
-            if (ul) ul.innerHTML = '<li><i class="fa-solid fa-spinner fa-spin"></i> Cargando cursos...</li>';
-            
-            const tbody = document.querySelector('.custom-table tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Conectando con Google Sheets...</td></tr>';
+        // Mostrar estado de carga en la UI (opcional)
+        const ul = document.querySelector('.course-list');
+        if (ul) ul.innerHTML = '<li><i class="fa-solid fa-spinner fa-spin"></i> Cargando cursos...</li>';
+        
+        const tbody = document.querySelector('.custom-table tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Conectando con Google Sheets...</td></tr>';
 
-            // Petición GET al backend para traer todo (Cursos, Alumnos, Evaluaciones)
-            const response = await fetch(GAS_URL + "?action=get_data", {
-                method: 'GET',
-                redirect: 'follow'
-            });
-            
-            const data = await response.json();
+        // Definir callback global para JSONP
+        window.jsonpCallback = (data) => {
             if (data.success) {
                 this.renderCursos(data.cursos);
                 this.renderAlumnos(data.alumnos);
             }
-        } catch (error) {
-            console.error("Error cargando datos reales:", error);
-            const ul = document.querySelector('.course-list');
+            // Limpiar script del DOM
+            const script = document.getElementById('jsonp-script');
+            if (script) script.remove();
+        };
+
+        // Crear script para JSONP (Evita cualquier bloqueo CORS)
+        const script = document.createElement('script');
+        script.id = 'jsonp-script';
+        script.src = `${GAS_URL}?action=get_data&callback=jsonpCallback`;
+        script.onerror = () => {
+            console.error("Error cargando script JSONP");
             if (ul) ul.innerHTML = '<li style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Error de conexión con Sheets</li>';
-            
-            const tbody = document.querySelector('.custom-table tbody');
-            if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--danger);">Error cargando datos: ${error.message}. <br>Asegúrate de haber implementado la Nueva Versión en Google Apps Script.</td></tr>`;
-        }
+            if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--danger);">CORS/Network error. Asegúrate de haber copiado el nuevo código Backend y actualizado la versión.</td></tr>`;
+        };
+        document.body.appendChild(script);
     }
 
     renderCursos(cursos) {

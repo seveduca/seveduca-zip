@@ -16,7 +16,15 @@ const FOLDER_ROOT_NAME = "SeveducaZIP_Data";
 function doGet(e) {
   // Endpoint API para obtener datos desde el Frontend (GitHub Pages)
   if (e.parameter && e.parameter.action === 'get_data') {
-    return ContentService.createTextOutput(JSON.stringify(getAllData()))
+    const dataJSON = JSON.stringify(getAllData());
+    
+    // Soporte para JSONP (crucial para saltarse el bloqueo CORS)
+    if (e.parameter.callback) {
+      return ContentService.createTextOutput(`${e.parameter.callback}(${dataJSON});`)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    return ContentService.createTextOutput(dataJSON)
       .setMimeType(ContentService.MimeType.JSON);
   }
 
