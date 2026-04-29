@@ -648,11 +648,8 @@ class AppController {
         this.activeAlumnoRut = null;
         this.activeEvaluacionId = null;
         
-        this.initNavigation();
-        this.loadData(); // Cargar datos desde Google Sheets al iniciar
-        
         this.cameraStream = null;
-        this.processing = false; // Controla el bucle de procesamiento de video
+        this.processing = false; 
         this.videoElement = document.getElementById('camera-preview');
         this.canvasElement = document.getElementById('camera-canvas');
         this.outputCanvas = document.getElementById('output-canvas');
@@ -664,11 +661,15 @@ class AppController {
         
         this.btnCapture.addEventListener('click', () => this.capturarYCalificar());
         
-        this.facingMode = 'environment'; // Cámara trasera por defecto
+        this.facingMode = 'environment';
         this.btnSwitch.addEventListener('click', () => {
             this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
             this.initCamera();
         });
+
+        // Iniciar navegación y datos al final para evitar crashes
+        this.initNavigation();
+        this.loadData();
     }
 
     async loadData() {
