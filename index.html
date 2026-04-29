@@ -1179,11 +1179,21 @@ class AppController {
             });
         });
 
-        this.initSidebar();
-        this.initScanner();
         this.setupManualEvents();
         this.loadDashboardData();
         
+        // Lógica interactiva para cambiar de curso
+        const courseList = document.querySelector('.course-list');
+        if (courseList) {
+            courseList.addEventListener('click', (e) => {
+                const li = e.target.closest('li');
+                if (li) {
+                    const idCurso = li.getAttribute('data-id');
+                    if (idCurso) this.seleccionarCurso(idCurso);
+                }
+            });
+        }
+
         // Inicializar estados
         this.manualMode = false;
         this.manualPoints = [];
