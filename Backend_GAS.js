@@ -107,17 +107,18 @@ function getAllData() {
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet) return [];
     const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return [];
     
-    const headers = data[0];
-    const rows = data.slice(1);
-    return rows.map(row => {
-      let obj = {};
-      headers.forEach((header, i) => {
-        obj[header] = row[i];
-      });
-      return obj;
-    });
+    // Identificar si la primera fila es encabezado (ID_Curso, ALU-, etc)
+    let startIndex = 0;
+    if (data.length > 0) {
+      const firstCell = String(data[0][0]);
+      if (firstCell === 'ID_Curso' || firstCell === 'ID_Alumno' || firstCell === 'ID_Evaluacion' || firstCell === 'Timestamp') {
+        startIndex = 1;
+      }
+    }
+    
+    if (data.length <= startIndex) return [];
+    return data.slice(startIndex);
   };
 
   return {

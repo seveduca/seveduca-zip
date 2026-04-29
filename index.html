@@ -749,15 +749,16 @@ class AppController {
         cursos.forEach((curso, index) => {
             const li = document.createElement('li');
             if (index === 0) li.classList.add('active'); // Primero activo por defecto
-            // Dependiendo de cómo vengan los headers, probamos Nombre o la posición
-            const nombreCurso = curso.Nombre || curso.nombre || "Curso sin nombre";
+            
+            // Leemos desde el índice 1 del array (Nombre)
+            const nombreCurso = curso[1] || "Curso sin nombre";
             li.innerHTML = `<i class="fa-solid fa-book" style="margin-right:8px;"></i> ${nombreCurso}`;
             ul.appendChild(li);
         });
         
         // Actualizar título de la tabla
         const titleEl = document.getElementById('table-course-title');
-        const primerCurso = cursos[0].Nombre || cursos[0].nombre || "Curso sin nombre";
+        const primerCurso = cursos[0][1] || "Curso sin nombre";
         if (titleEl) titleEl.innerText = `Alumnos: ${primerCurso}`;
     }
 
@@ -773,9 +774,10 @@ class AppController {
 
         alumnos.forEach(alumno => {
             const tr = document.createElement('tr');
-            const rut = alumno.RUT || alumno.rut || "Sin RUT";
-            const nombre = alumno.Nombre_Completo || alumno.Nombre || alumno.nombre || "Sin Nombre";
-            const nota = alumno.Ultima_Nota || alumno.Nota || "N/A";
+            // Leemos directamente desde los índices del array [ID, ID_Curso, RUT, Nombre, Nota]
+            const rut = alumno[2] || "Sin RUT";
+            const nombre = alumno[3] || "Sin Nombre";
+            const nota = alumno[4] || "N/A";
             
             let colorNota = "var(--text-muted)";
             if (parseFloat(nota) >= 5.0) colorNota = "var(--success)";
