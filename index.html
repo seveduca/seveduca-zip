@@ -843,7 +843,7 @@ class AppController {
                 Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
                 
                 const action = type === 'alumno' ? 'delete_alumno' : 'delete_evaluacion';
-                const payload = type === 'alumno' ? { rut: idString } : { nombre: idString };
+                const payload = type === 'alumno' ? { idCurso: this.activeCursoId, rut: idString } : { nombre: idString };
                 
                 fetch(GAS_URL, {
                     method: 'POST',

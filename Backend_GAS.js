@@ -156,8 +156,8 @@ function editAlumno(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Alumnos');
   const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][2] === payload.oldRut && String(data[i][1]) === String(payload.idCurso)) {
+  for (let i = 0; i < data.length; i++) {
+    if (String(data[i][2]).trim() === String(payload.oldRut).trim() && String(data[i][1]) === String(payload.idCurso)) {
       sheet.getRange(i + 1, 3).setValue(payload.newRut);
       sheet.getRange(i + 1, 4).setValue(payload.newNombre);
       return { success: true };
@@ -184,8 +184,11 @@ function deleteAlumno(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Alumnos');
   const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === payload.idAlumno || data[i][2] === payload.rut) {
+  for (let i = 0; i < data.length; i++) {
+    const matchRut = payload.rut ? String(data[i][2]).trim() === String(payload.rut).trim() : false;
+    const matchCurso = payload.idCurso ? String(data[i][1]) === String(payload.idCurso) : true;
+    
+    if (data[i][0] === payload.idAlumno || (matchRut && matchCurso)) {
       sheet.deleteRow(i + 1);
       return { success: true, message: "Alumno eliminado" };
     }
