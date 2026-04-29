@@ -1,0 +1,918 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeveducaZIP - Calificación Inteligente</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome para íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Estilos Personalizados -->
+    <style>
+/* Variables de Diseño (Design Tokens) */
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --secondary: #0ea5e9;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    
+    --bg-dark: #0f172a;
+    --bg-panel: rgba(30, 41, 59, 0.7);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    
+    --border-color: rgba(255, 255, 255, 0.1);
+    --glass-blur: blur(12px);
+    
+    --font-main: 'Inter', sans-serif;
+    --transition: all 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow: hidden; /* Previene scroll en la ventana principal, el main maneja el scroll */
+    /* Fondo con gradiente oscuro sutil */
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
+}
+
+/* Tipografía */
+h1, h2, h3 { font-weight: 600; color: #fff; }
+p { color: var(--text-muted); line-height: 1.5; }
+
+/* Contenedor Principal */
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Utilidades Glassmorphism */
+.glass-panel {
+    background: var(--bg-panel);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* --- Barra Lateral (Sidebar) --- */
+.sidebar {
+    width: 260px;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: var(--glass-blur);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 0;
+    z-index: 10;
+}
+
+.sidebar-header {
+    padding: 0 24px 32px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.2rem;
+    color: var(--primary);
+}
+.logo h2 { color: #fff; margin: 0; }
+.logo span { color: var(--secondary); font-weight: 300; }
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 16px;
+}
+
+.nav-links li {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: var(--transition);
+    font-weight: 500;
+}
+
+.nav-links li:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.nav-links li.active {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}
+
+.nav-highlight {
+    margin-top: 16px;
+    border: 1px dashed var(--primary);
+}
+
+/* --- Contenido Principal --- */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* Cabecera Superior */
+.top-header {
+    height: 72px;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: var(--glass-blur);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 16px;
+    width: 300px;
+}
+
+.search-bar i { color: var(--text-muted); margin-right: 12px; }
+.search-bar input {
+    background: none; border: none; outline: none;
+    color: #fff; width: 100%; font-family: var(--font-main);
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex; justify-content: center; align-items: center;
+    font-weight: bold; font-size: 1.2rem;
+}
+
+/* Áreas de Vistas */
+.content-area {
+    padding: 32px;
+}
+
+.view-section {
+    display: none;
+    animation: fadeIn 0.4s ease forwards;
+}
+
+.view-section.active { display: block; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.section-header { margin-bottom: 32px; }
+.section-header h1 { font-size: 2rem; margin-bottom: 8px; }
+
+/* Dashboard Grids */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.stat-icon {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 1.5rem;
+}
+
+.stat-info h3 { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 4px; }
+.stat-info p { font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0; }
+
+.empty-state {
+    text-align: center; padding: 48px 0;
+}
+.empty-state i { font-size: 3rem; color: var(--text-muted); margin-bottom: 16px; opacity: 0.5; }
+.empty-state p { margin-bottom: 24px; }
+
+/* --- Escáner OMR UI --- */
+.scanner-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.camera-wrapper {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 24px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+#camera-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.scanner-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; justify-content: center; align-items: center;
+    background: rgba(0,0,0,0.7);
+    color: #fff; font-size: 1.2rem;
+}
+
+.scanner-guides {
+    position: absolute;
+    top: 10%; left: 10%; right: 10%; bottom: 10%;
+    pointer-events: none;
+}
+
+.corner {
+    position: absolute;
+    width: 40px; height: 40px;
+    border: 4px solid var(--success);
+    transition: all 0.3s ease;
+}
+
+.top-left { top: 0; left: 0; border-right: none; border-bottom: none; }
+.top-right { top: 0; right: 0; border-left: none; border-bottom: none; }
+.bottom-left { bottom: 0; left: 0; border-right: none; border-top: none; }
+.bottom-right { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+.scanner-controls {
+    display: flex; gap: 16px; width: 100%; justify-content: center;
+}
+
+/* Botones */
+button {
+    font-family: var(--font-main);
+    border: none; outline: none; cursor: pointer;
+    padding: 10px 20px; border-radius: 8px;
+    font-weight: 600; font-size: 0.95rem;
+    transition: var(--transition);
+    display: flex; align-items: center; gap: 8px;
+}
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); }
+
+.btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid var(--border-color); }
+.btn-secondary:hover { background: rgba(255,255,255,0.2); }
+
+.btn-primary.large { padding: 14px 28px; font-size: 1.1rem; border-radius: 12px; }
+
+.hidden { display: none !important; }
+
+/* Canvas superpuesto para OpenCV */
+.output-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none; /* Permite clics a través del canvas */
+}
+
+/* SweetAlert2 personalizaciones para que coincida con el tema oscuro */
+.swal2-popup {
+    background: var(--bg-dark) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 16px !important;
+}
+.swal2-title { color: #fff !important; font-family: var(--font-main) !important; }
+.swal2-html-container { color: var(--text-muted) !important; font-family: var(--font-main) !important; }
+.swal2-confirm { background-color: var(--primary) !important; border-radius: 8px !important; }
+
+</style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Barra lateral de navegación -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fa-solid fa-expand"></i>
+                    <h2>Seveduca<span>ZIP</span></h2>
+                </div>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-target="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Panel Principal</span>
+                </li>
+                <li data-target="cursos">
+                    <i class="fa-solid fa-users-rectangle"></i>
+                    <span>Cursos y Alumnos</span>
+                </li>
+                <li data-target="evaluaciones">
+                    <i class="fa-solid fa-file-signature"></i>
+                    <span>Evaluaciones</span>
+                </li>
+                <li data-target="escaner" class="nav-highlight">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Escanear Hojas</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Área de contenido principal -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="search-bar">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" placeholder="Buscar cursos o evaluaciones...">
+                </div>
+                <div class="user-profile">
+                    <div class="avatar">P</div>
+                    <span>Profesor</span>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <!-- Vista: Panel Principal -->
+                <section id="dashboard" class="view-section active">
+                    <div class="section-header">
+                        <h1>Hola de nuevo 👋</h1>
+                        <p>Aquí tienes el resumen de tus evaluaciones recientes.</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon" style="background: rgba(99, 102, 241, 0.2); color: #6366f1;">
+                                <i class="fa-solid fa-file-circle-check"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Total Evaluaciones</h3>
+                                <p>12</p>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Total Alumnos</h3>
+                                <p>345</p>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+                                <i class="fa-solid fa-bolt"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Promedio General</h3>
+                                <p>5.8</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-widgets" style="display: flex; gap: 24px; flex-wrap: wrap;">
+                        <div class="widget glass-panel" style="flex: 2; min-width: 400px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h2>Rendimiento del Curso</h2>
+                                <button class="btn-secondary" onclick="app.generateCoursePDF()"><i class="fa-solid fa-file-pdf"></i> Reporte PDF</button>
+                            </div>
+                            <div class="chart-container" style="position: relative; height:300px; width:100%">
+                                <canvas id="course-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="widget glass-panel" style="flex: 1; min-width: 250px;">
+                            <h2>Últimas Pruebas Escaneadas</h2>
+                            <div class="empty-state">
+                                <i class="fa-solid fa-inbox"></i>
+                                <p>Aún no has escaneado pruebas.</p>
+                                <button class="btn-primary" onclick="app.navigateTo('escaner')">Escanear Ahora</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Vista: Escáner -->
+                <section id="escaner" class="view-section">
+                    <div class="section-header">
+                        <h1>Escáner de Hojas (OMR)</h1>
+                        <p>Enfoca la hoja de respuestas del alumno en el recuadro para calificar.</p>
+                    </div>
+                    <div class="scanner-container glass-panel">
+                        <div class="camera-wrapper">
+                            <video id="camera-preview" autoplay playsinline></video>
+                            <canvas id="camera-canvas" class="hidden"></canvas>
+                            <!-- Canvas para dibujar la detección de la hoja encima del video -->
+                            <canvas id="output-canvas" class="output-canvas"></canvas>
+                            <!-- Guías visuales para alinear la hoja -->
+                            <div class="scanner-guides">
+                                <div class="corner top-left"></div>
+                                <div class="corner top-right"></div>
+                                <div class="corner bottom-left"></div>
+                                <div class="corner bottom-right"></div>
+                            </div>
+                            <div class="scanner-overlay">
+                                <p><i class="fa-solid fa-camera"></i> Iniciando cámara...</p>
+                            </div>
+                        </div>
+                        <div class="scanner-controls">
+                            <button class="btn-secondary" id="btn-switch-camera">
+                                <i class="fa-solid fa-camera-rotate"></i> Cambiar Cámara
+                            </button>
+                            <button class="btn-primary large" id="btn-capture">
+                                <i class="fa-solid fa-crosshairs"></i> Capturar y Calificar
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Otras vistas (Cursos, Evaluaciones) irían aquí -->
+                <section id="cursos" class="view-section">
+                    <div class="section-header">
+                        <h1>Cursos y Alumnos</h1>
+                        <p>Gestiona tu lista de estudiantes.</p>
+                    </div>
+                    <div class="glass-panel">
+                        <p>Módulo en construcción...</p>
+                    </div>
+                </section>
+
+                <section id="evaluaciones" class="view-section">
+                    <div class="section-header">
+                        <h1>Gestión de Evaluaciones</h1>
+                        <p>Crea pautas y claves de respuestas.</p>
+                    </div>
+                    <div class="glass-panel">
+                        <p>Módulo en construcción...</p>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Chart.js para visualización de datos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf para generar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- OpenCV.js para procesamiento de imágenes -->
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <!-- SweetAlert2 para alertas atractivas -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Lógica de la aplicación -->
+    <script>
+/**
+ * Lógica Principal Frontend SeveducaZIP (Con Motor OMR OpenCV.js)
+ */
+
+// ══════════════════════════════════════════════════
+// 🔗 URL del Backend (Google Apps Script)
+// ══════════════════════════════════════════════════
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzrCDfhKhHzh4vA80O2M8SX0lJ2cqmryCjQ-4O5dRIAZNc2MABNaUiQ7HlYi7dm8MIG_g/exec";
+
+let cvReady = false;
+
+// Callback llamado automáticamente cuando OpenCV termina de cargar desde el CDN
+function onOpenCvReady() {
+    cvReady = true;
+    console.log("OpenCV.js cargado correctamente.");
+}
+
+class AppController {
+    constructor() {
+        this.initNavigation();
+        this.cameraStream = null;
+        this.processing = false; // Controla el bucle de procesamiento de video
+        this.videoElement = document.getElementById('camera-preview');
+        this.canvasElement = document.getElementById('camera-canvas');
+        this.outputCanvas = document.getElementById('output-canvas');
+        this.ctx = this.canvasElement.getContext('2d', { willReadFrequently: true });
+        
+        // Botones
+        this.btnCapture = document.getElementById('btn-capture');
+        this.btnSwitch = document.getElementById('btn-switch-camera');
+        
+        this.btnCapture.addEventListener('click', () => this.capturarYCalificar());
+        
+        this.facingMode = 'environment'; // Cámara trasera por defecto
+        this.btnSwitch.addEventListener('click', () => {
+            this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+            this.initCamera();
+        });
+    }
+
+    initNavigation() {
+        const navItems = document.querySelectorAll('.nav-links li');
+        navItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                const targetId = e.currentTarget.getAttribute('data-target');
+                if (targetId) this.navigateTo(targetId);
+            });
+        });
+    }
+
+    navigateTo(viewId) {
+        document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
+        const activeNav = document.querySelector(`.nav-links li[data-target="${viewId}"]`);
+        if(activeNav) activeNav.classList.add('active');
+
+        document.querySelectorAll('.view-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        const targetSection = document.getElementById(viewId);
+        if (targetSection) targetSection.classList.add('active');
+
+        if (viewId === 'dashboard') {
+            this.initCharts();
+        }
+
+        if (viewId === 'escaner') {
+            this.initCamera();
+        } else {
+            this.stopCamera();
+        }
+    }
+
+    async initCamera() {
+        this.stopCamera(); // Detener si hay una corriendo
+        const overlay = document.querySelector('.scanner-overlay');
+        overlay.classList.remove('hidden');
+        overlay.innerHTML = `<p><i class="fa-solid fa-spinner fa-spin"></i> Iniciando cámara...</p>`;
+
+        try {
+            this.cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: this.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
+            });
+            
+            this.videoElement.srcObject = this.cameraStream;
+            
+            // Esperar a que el video empiece a reproducirse para conocer sus dimensiones
+            this.videoElement.onloadedmetadata = () => {
+                this.videoElement.play();
+                overlay.classList.add('hidden');
+                
+                // Ajustar tamaños de canvas al video
+                this.canvasElement.width = this.videoElement.videoWidth;
+                this.canvasElement.height = this.videoElement.videoHeight;
+                this.outputCanvas.width = this.videoElement.videoWidth;
+                this.outputCanvas.height = this.videoElement.videoHeight;
+                
+                this.startProcessing(); // Iniciar motor OMR en tiempo real
+            };
+            
+        } catch (error) {
+            console.error('Error accediendo a la cámara:', error);
+            overlay.innerHTML = `<p style="color: #ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Error al acceder a la cámara. Permite el acceso.</p>`;
+        }
+    }
+
+    stopCamera() {
+        this.processing = false;
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach(track => track.stop());
+            this.cameraStream = null;
+        }
+        // Limpiar canvas
+        const outCtx = this.outputCanvas.getContext('2d');
+        outCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+    }
+
+    // --- FASE 4: GRÁFICOS (CHART.JS) ---
+    initCharts() {
+        if (this.courseChart) return; // Ya inicializado
+        
+        const ctx = document.getElementById('course-chart');
+        if (!ctx) return;
+
+        this.courseChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Matemáticas', 'Lenguaje', 'Historia', 'Ciencias', 'Inglés'],
+                datasets: [{
+                    label: 'Promedio del Curso',
+                    data: [5.2, 5.8, 6.1, 4.9, 6.5],
+                    backgroundColor: 'rgba(99, 102, 241, 0.5)',
+                    borderColor: '#4f46e5',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 7.0, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#f8fafc' } }
+                }
+            }
+        });
+    }
+
+    // --- FASE 5: GENERACIÓN DE PDF ---
+    generateCoursePDF() {
+        Swal.fire({
+            title: 'Generando PDF',
+            text: 'Preparando el reporte global del curso...',
+            timer: 1500,
+            didOpen: () => { Swal.showLoading(); }
+        }).then(() => {
+            // Seleccionamos el panel completo para exportarlo a PDF
+            const element = document.querySelector('#dashboard');
+            const opt = {
+                margin:       0.5,
+                filename:     'Reporte_Curso_SeveducaZIP.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+            
+            html2pdf().set(opt).from(element).save();
+        });
+    }
+
+    generateStudentPDF(nota, alumno, fotoBase64) {
+        // Creamos un contenedor temporal invisible para el PDF del alumno
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <div id="pdf-template" style="padding: 40px; font-family: sans-serif; background: white; color: black; text-align: center;">
+                <h1 style="color: #4f46e5;">Reporte de Evaluación - SeveducaZIP</h1>
+                <hr style="border: 1px solid #eee;">
+                <h2>Alumno: ${alumno}</h2>
+                <div style="margin: 30px 0; font-size: 4rem; font-weight: bold; color: ${parseFloat(nota) >= 4.0 ? '#10b981' : '#ef4444'};">${nota}</div>
+                <p style="font-size: 1.2rem;">Captura de la prueba escaneada:</p>
+                <img src="${fotoBase64}" style="max-width: 100%; border: 2px solid #ccc; margin-top: 20px; border-radius: 8px;">
+                <p style="margin-top: 40px; color: #666; font-size: 0.8rem;">Generado por SeveducaZIP - ${new Date().toLocaleString()}</p>
+            </div>
+        `;
+
+        const opt = {
+            margin:       0.5,
+            filename:     `Prueba_${alumno.replace(' ','_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        // Generar y descargar localmente
+        html2pdf().set(opt).from(div).save().output('blob').then((blob) => {
+            // Convertir blob a base64 para enviarlo al Drive
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+                const base64data = reader.result.split(',')[1];
+                
+                // Enviar al Backend para guardar en Drive
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({
+                        action: 'guardar_pdf',
+                        payload: {
+                            base64: base64data,
+                            fileName: `Prueba_${alumno.replace(' ','_')}_${Date.now()}.pdf`,
+                            curso: '1 Medio A', // Podría ser dinámico
+                            alumno: alumno
+                        }
+                    })
+                });
+                
+                console.log('☁️ PDF enviado a Google Drive');
+                this.startProcessing(); // Reanudar escáner
+            };
+        });
+    }
+
+    // --- FASE 3: LÓGICA DE ESCANEO OMR (TIEMPO REAL) ---
+    startProcessing() {
+        if (!cvReady) {
+            setTimeout(() => this.startProcessing(), 500); // Esperar a que cargue OpenCV
+            return;
+        }
+        this.processing = true;
+        this.processFrame();
+    }
+
+    processFrame() {
+        if (!this.processing) return;
+
+        try {
+            // 1. Dibujar el frame actual del video en el canvas oculto
+            this.ctx.drawImage(this.videoElement, 0, 0, this.canvasElement.width, this.canvasElement.height);
+            
+            // 2. Leer la imagen con OpenCV
+            let src = cv.imread(this.canvasElement);
+            let gray = new cv.Mat();
+            let blurred = new cv.Mat();
+            let edges = new cv.Mat();
+            
+            // 3. Preprocesamiento: Escala de grises, Desenfoque (para reducir ruido) y Detección de Bordes (Canny)
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
+            cv.Canny(blurred, edges, 75, 200);
+            
+            // 4. Encontrar contornos
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            
+            // 5. Buscar el contorno más grande que parezca un papel (4 esquinas)
+            let maxArea = 0;
+            let paperContour = null;
+            
+            for (let i = 0; i < contours.size(); i++) {
+                let cnt = contours.get(i);
+                let area = cv.contourArea(cnt);
+                
+                if (area > 50000) { // Ignorar ruido pequeño (el área dependerá de la resolución)
+                    let peri = cv.arcLength(cnt, true);
+                    let approx = new cv.Mat();
+                    cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                    
+                    if (approx.rows === 4 && area > maxArea) {
+                        maxArea = area;
+                        if (paperContour) paperContour.delete(); // Limpiar memoria anterior
+                        paperContour = approx;
+                    } else {
+                        approx.delete();
+                    }
+                }
+                cnt.delete();
+            }
+            
+            // 6. Dibujar guía visual (Realidad Aumentada) sobre el output-canvas
+            const outCtx = this.outputCanvas.getContext('2d');
+            outCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+            
+            if (paperContour) {
+                // Dibujar un polígono verde semi-transparente sobre la hoja detectada
+                outCtx.beginPath();
+                for (let i = 0; i < 4; i++) {
+                    let point = paperContour.data32S; // Array de puntos [x,y, x,y, ...]
+                    if (i === 0) outCtx.moveTo(point[0], point[1]);
+                    else outCtx.lineTo(point[i*2], point[i*2+1]);
+                }
+                outCtx.closePath();
+                outCtx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+                outCtx.fill();
+                outCtx.lineWidth = 4;
+                outCtx.strokeStyle = '#10b981'; // success color
+                outCtx.stroke();
+                
+                // Actualizar UI: Mostrar que estamos listos para capturar
+                this.btnCapture.classList.add('ready');
+                this.btnCapture.innerHTML = `<i class="fa-solid fa-check"></i> Hoja Detectada - Calificar`;
+                
+                paperContour.delete();
+            } else {
+                this.btnCapture.classList.remove('ready');
+                this.btnCapture.innerHTML = `<i class="fa-solid fa-crosshairs"></i> Capturar y Calificar`;
+            }
+
+            // Liberar memoria (¡CRÍTICO EN OPENCV.JS PARA EVITAR MEMORY LEAKS!)
+            src.delete(); gray.delete(); blurred.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+
+        } catch (err) {
+            console.warn("Error procesando frame:", err);
+        }
+
+        // Programar el siguiente frame
+        requestAnimationFrame(() => this.processFrame());
+    }
+
+    // Simula la calificación cuando el usuario presiona el botón
+    capturarYCalificar() {
+        if (!cvReady) {
+            Swal.fire('Error', 'El motor de escaneo (OpenCV) aún no está cargado.', 'error');
+            return;
+        }
+
+        // Congelar procesamiento temporalmente
+        this.processing = false;
+        
+        // Extraer imagen actual como Base64 (simulando que la guardaremos en Drive)
+        const frameData = this.canvasElement.toDataURL('image/jpeg', 0.8);
+
+        // Simulamos la matemática de corrección de burbujas (para una demo visual)
+        Swal.fire({
+            title: 'Procesando...',
+            html: 'Analizando burbujas marcadas con OpenCV...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // ── Simulamos el resultado del escaneo OMR ──
+        const notaGenerada = (Math.random() * (7.0 - 2.0) + 2.0).toFixed(1);
+        const puntajeGenerado = Math.floor(Math.random() * 20) + 20; // Entre 20 y 40
+        const alumnoNombre    = 'Juan Pérez';
+        const cursoNombre     = '1° Medio A';
+        const aprobado        = parseFloat(notaGenerada) >= 4.0;
+        const color           = aprobado ? '#10b981' : '#ef4444';
+
+        // ── Enviar resultado al Backend (Google Sheets) ──
+        fetch(GAS_URL, {
+            method: 'POST',
+            mode:   'no-cors', // GAS requiere no-cors desde navegadores
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'guardar_resultado',
+                payload: {
+                    evaluacionId: 'EVAL-' + Date.now(),
+                    rutAlumno:    alumnoNombre,
+                    nota:         notaGenerada,
+                    puntaje:      puntajeGenerado,
+                    respuestas:   { total: 40, correctas: puntajeGenerado }
+                }
+            })
+        }).then(() => {
+            console.log('✅ Resultado enviado a Google Sheets');
+        }).catch(err => {
+            console.warn('⚠️ No se pudo guardar en Sheets:', err);
+        });
+
+        // ── Mostrar resultado al usuario ──
+        setTimeout(() => {
+            Swal.fire({
+                title: '¡Calificación Exitosa!',
+                html: `
+                    <div style="font-size: 3.5rem; font-weight: bold; color: ${color}; margin: 16px 0;">${notaGenerada}</div>
+                    <p>Alumno: <b>${alumnoNombre}</b> (${cursoNombre})</p>
+                    <p>Puntaje: <b>${puntajeGenerado}/40</b></p>
+                    <hr style="border-color: rgba(255,255,255,0.1); margin: 16px 0;">
+                    <p style="font-size: 0.85rem; color: #10b981;"><i class="fa-solid fa-check"></i> Guardado en Google Sheets</p>
+                `,
+                icon: aprobado ? 'success' : 'warning',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-arrow-right"></i> Siguiente Hoja',
+                cancelButtonText:  '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
+                cancelButtonColor: '#0ea5e9'
+            }).then((result) => {
+                if (result.dismiss === Swal.DismissReason.cancel) {
+                    this.generateStudentPDF(notaGenerada, alumnoNombre, frameData);
+                } else {
+                    this.startProcessing();
+                }
+            });
+        }, 800);
+    }
+}
+
+// Iniciar aplicación
+const app = new AppController();
+
+</script>
+</body>
+</html>
+
