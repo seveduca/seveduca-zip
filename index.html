@@ -727,7 +727,11 @@ class AppController {
             }
         } catch (error) {
             console.error("Error cargando datos reales:", error);
-            // Si falla por problemas de red o CORS, volvemos a poner algo de texto para no dejar vacío
+            const ul = document.querySelector('.course-list');
+            if (ul) ul.innerHTML = '<li style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Error de conexión con Sheets</li>';
+            
+            const tbody = document.querySelector('.custom-table tbody');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--danger);">Error cargando datos: ${error.message}. <br>Asegúrate de haber implementado la Nueva Versión en Google Apps Script.</td></tr>`;
         }
     }
 
