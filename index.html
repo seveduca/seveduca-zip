@@ -1400,66 +1400,70 @@ class AppController {
             let hierarchy = new cv.Mat();
             cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
             
-            // 5. Buscar el contorno más grande que parezca un papel (4 esquinas + Proporción A4)
-            let maxArea = 0;
-            let paperContour = null;
+            let bestPaper = null;
+            let maxScore = 0;
+            const centerX = this.outputCanvas.width / 2;
+            const centerY = this.outputCanvas.height / 2;
             
             for (let i = 0; i < contours.size(); i++) {
                 let cnt = contours.get(i);
                 let area = cv.contourArea(cnt);
-                
-                if (area > 40000) { 
+                if (area > 30000) {
                     let peri = cv.arcLength(cnt, true);
                     let approx = new cv.Mat();
                     cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
                     
                     if (approx.rows === 4) {
-                        // Calcular proporcion (aspect ratio) para evitar cuadros u objetos no-papel
                         let rect = cv.minAreaRect(cnt);
                         let w = rect.size.width;
                         let h = rect.size.height;
                         let ar = Math.max(w, h) / Math.min(w, h);
                         
-                        // Proporción A4 es ~1.41. Aceptamos entre 1.2 y 1.7
-                        if (ar > 1.1 && ar < 1.8 && area > maxArea) {
-                            maxArea = area;
-                            if (paperContour) paperContour.delete();
-                            paperContour = approx;
+                        // Calcular distancia al centro (queremos lo que el usuario sostiene al centro)
+                        let distToCenter = Math.sqrt(Math.pow(rect.center.x - centerX, 2) + Math.pow(rect.center.y - centerY, 2));
+                        let centerBonus = 1.0 - (distToCenter / (this.outputCanvas.width / 2));
+                        
+                        // Score: Area + Bonus por forma A4 + Bonus por estar al centro
+                        let shapeScore = (ar > 1.2 && ar < 1.6) ? 2.0 : 1.0;
+                        let totalScore = area * shapeScore * (centerBonus > 0 ? centerBonus : 0.1);
+                        
+                        if (totalScore > maxScore) {
+                            maxScore = totalScore;
+                            if (bestPaper) bestPaper.delete();
+                            bestPaper = approx;
                         } else {
                             approx.delete();
                         }
-                    } else {
-                        approx.delete();
-                    }
+                    } else { approx.delete(); }
                 }
                 cnt.delete();
             }
             
-            // 6. Dibujar guía visual
             const outCtx = this.outputCanvas.getContext('2d');
             outCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
             
-            if (paperContour) {
+            if (bestPaper) {
                 outCtx.beginPath();
                 for (let i = 0; i < 4; i++) {
-                    let point = paperContour.data32S;
-                    if (i === 0) outCtx.moveTo(point[0], point[1]);
-                    else outCtx.lineTo(point[i*2], point[i*2+1]);
+                    let pt = bestPaper.data32S;
+                    if (i === 0) outCtx.moveTo(pt[0], pt[1]);
+                    else outCtx.lineTo(pt[i*2], pt[i*2+1]);
                 }
                 outCtx.closePath();
-                outCtx.fillStyle = 'rgba(16, 185, 129, 0.25)';
+                outCtx.fillStyle = 'rgba(16, 185, 129, 0.3)';
                 outCtx.fill();
-                outCtx.lineWidth = 3;
                 outCtx.strokeStyle = '#10b981';
+                outCtx.lineWidth = 4;
                 outCtx.stroke();
                 
                 this.btnCapture.classList.add('ready');
                 this.btnCapture.innerHTML = `<i class="fa-solid fa-check"></i> Hoja Detectada - Calificar`;
-                
-                paperContour.delete();
+                this.detectedPaper = bestPaper.clone(); 
+                bestPaper.delete();
             } else {
                 this.btnCapture.classList.remove('ready');
                 this.btnCapture.innerHTML = `<i class="fa-solid fa-crosshairs"></i> Capturar y Calificar`;
+                this.detectedPaper = null;
             }
 
             src.delete(); gray.delete(); blurred.delete(); edges.delete(); contours.delete(); hierarchy.delete();
@@ -1511,13 +1515,7 @@ class AppController {
         cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 19, 10);
 
         const pxPerCm = 800 / 21; 
-        const colStarts = [
-            1.1 * pxPerCm,
-            (1.1 + 4.46 + 0.25) * pxPerCm,
-            (1.1 + 2*(4.46 + 0.25)) * pxPerCm,
-            (1.1 + 3*(4.46 + 0.25)) * pxPerCm
-        ];
-        
+        const colStarts = [1.1, 5.81, 10.52, 15.23].map(c => c * pxPerCm);
         const qNumW = 0.55 * pxPerCm; 
         const cellW = 0.77 * pxPerCm; 
         const rowH  = 0.52 * pxPerCm; 
@@ -1526,11 +1524,10 @@ class AppController {
 
         const colSize = Math.ceil(numPreguntas / 4);
         const sampleR = Math.round(0.16 * pxPerCm); 
-        const FILL_THRESHOLD = 35; 
+        const FILL_THRESHOLD = 30; 
 
-        // Guardar para debug global
-        if (window.lastWarpedMat) window.lastWarpedMat.delete();
-        window.lastWarpedMat = warped.clone();
+        // Debug: Dibujamos sobre la imagen warpada
+        let debugMat = warped.clone();
 
         const answers = [];
         for (let q = 0; q < numPreguntas; q++) {
@@ -1539,6 +1536,7 @@ class AppController {
             if (col >= 4) break;
             const rowCY = answersTopY + colHeaderH + rowIdx * rowH + rowH / 2;
 
+            let maxF = 0, sel = null;
             for (let b = 0; b < 5; b++) {
                 const bx = colStarts[col] + qNumW + cellW * (b + 0.5);
                 const by = rowCY;
@@ -1549,26 +1547,20 @@ class AppController {
                 const fill = cv.mean(roi)[0];
                 roi.delete();
                 
-                // Dibujar en el mat de debug
-                cv.rectangle(window.lastWarpedMat, new cv.Point(x0, y0), new cv.Point(x1, y1), 
+                if (fill > maxF) { maxF = fill; sel = ['A','B','C','D','E'][b]; }
+                cv.rectangle(debugMat, new cv.Point(x0, y0), new cv.Point(x1, y1), 
                              fill > FILL_THRESHOLD ? new cv.Scalar(0, 255, 0, 255) : new cv.Scalar(255, 0, 0, 255), 1);
-            }
-            
-            // Calculamos la respuesta real buscando el max fill de nuevo o simplificamos
-            let maxF = 0, sel = null;
-            for (let b = 0; b < 5; b++) {
-                const bx = colStarts[col] + qNumW + cellW * (b + 0.5);
-                const by = rowCY;
-                const x0 = Math.max(0, Math.round(bx - sampleR)), y0 = Math.max(0, Math.round(by - sampleR));
-                const x1 = Math.min(W - 1, Math.round(bx + sampleR)), y1 = Math.min(H - 1, Math.round(by + sampleR));
-                const roi2 = thresh.roi(new cv.Rect(x0, y0, x1-x0, y1-y0));
-                const f2 = cv.mean(roi2)[0];
-                roi2.delete();
-                if (f2 > maxF) { maxF = f2; sel = ['A','B','C','D','E'][b]; }
             }
             answers.push(maxF > FILL_THRESHOLD ? sel : null);
         }
-        gray.delete(); thresh.delete();
+
+        // Convertir debugMat a URL de imagen para el SwAl
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = W; tempCanvas.height = H;
+        cv.imshow(tempCanvas, debugMat);
+        this.lastDebugImageURL = tempCanvas.toDataURL();
+
+        gray.delete(); thresh.delete(); debugMat.delete();
         return answers;
     }
 
@@ -1717,9 +1709,9 @@ class AppController {
                     ${tablaHTML}
                     <div id="omr-debug-container" style="margin-top:15px; border:1px solid #334155; border-radius:8px; overflow:hidden; display:none;">
                         <p style="font-size:0.6rem; background:#1e293b; padding:4px; margin:0;">Vista de Calibración OMR</p>
-                        <canvas id="debug-omr" style="width:100%; height:auto; display:block;"></canvas>
+                        <img id="debug-omr-img" style="width:100%; height:auto; display:block; filter: brightness(1.2) contrast(1.2);">
                     </div>
-                    <button class="btn-secondary" style="font-size:0.7rem; padding:4px 8px; margin-top:8px;" onclick="document.getElementById('omr-debug-container').style.display='block'; setTimeout(() => { if(window.lastWarpedMat) cv.imshow('debug-omr', window.lastWarpedMat); }, 100);">Ver Calibración</button>
+                    <button class="btn-secondary" style="font-size:0.7rem; padding:4px 8px; margin-top:8px;" onclick="document.getElementById('omr-debug-container').style.display='block';">Ver Calibración</button>
                     <hr style="border-color:rgba(255,255,255,0.1);margin:12px 0">
                     <p style="font-size:0.8rem;color:#10b981"><i class="fa-solid fa-check"></i> Guardado en Google Sheets</p>
                 `,
