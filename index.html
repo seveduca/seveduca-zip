@@ -332,7 +332,7 @@ button {
 .swal2-title { color: #fff !important; font-family: var(--font-main) !important; }
 .swal2-html-container { color: var(--text-muted) !important; font-family: var(--font-main) !important; }
 .swal2-confirm { background-color: var(--primary) !important; border-radius: 8px !important; }
-.swal2-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid var(--border-color) !important; color: #fff !important; }
+.swal2-input, .swal2-textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid var(--border-color) !important; color: #fff !important; }
 
 /* --- Estilos Módulos Cursos y Evaluaciones --- */
 .course-list { list-style: none; }
@@ -531,7 +531,10 @@ button {
                         <div class="glass-panel" style="flex: 2; min-width: 400px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                                 <h3 id="table-course-title" style="font-size: 1.1rem;">Alumnos: 1° Medio A</h3>
-                                <button class="btn-secondary" style="font-size: 0.85rem;" onclick="app.addStudent()"><i class="fa-solid fa-user-plus"></i> Añadir Alumno</button>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn-secondary" style="font-size: 0.85rem;" onclick="app.importStudents()"><i class="fa-solid fa-file-excel"></i> Importar Nómina</button>
+                                    <button class="btn-secondary" style="font-size: 0.85rem;" onclick="app.addStudent()"><i class="fa-solid fa-user-plus"></i> Añadir Alumno</button>
+                                </div>
                             </div>
                             <div style="overflow-x: auto;">
                                 <table class="custom-table">
@@ -814,7 +817,7 @@ class AppController {
                 <td>${nombre}</td>
                 <td><span style="color: ${colorNota}; font-weight: bold;">${nota}</span></td>
                 <td>
-                    <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
+                    <button class="icon-btn" onclick="app.editStudent('${rut}', '${nombre}')"><i class="fa-solid fa-pen"></i></button>
                     <button class="icon-btn danger" onclick="app.confirmDelete('alumno', '${rut}')"><i class="fa-solid fa-trash"></i></button>
                 </td>
             `;
@@ -924,7 +927,117 @@ class AppController {
                 this.alumnosData.push(['ALU-TEMP', this.activeCursoId, formValues.rut, formValues.nombre, 'N/A']);
                 this.seleccionarCurso(this.activeCursoId); // Re-render
 
-                Swal.fire('¡Añadido!', `El alumno ${formValues.nombre} ha sido guardado en Google Sheets.`, 'success');
+                Swal.fire('¡Añadido!', `El alumno ${formValues.nombre} ha sido guardado.`, 'success');
+            });
+        }
+    }
+
+    async editStudent(oldRut, oldNombre) {
+        if (!this.activeCursoId) return;
+
+        const { value: formValues } = await Swal.fire({
+            title: 'Editar Alumno',
+            html:
+                `<input id="swal-input-rut" class="swal2-input" value="${oldRut}" placeholder="RUT">` +
+                `<input id="swal-input-nombre" class="swal2-input" value="${oldNombre}" placeholder="Nombre Completo">`,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Guardar Cambios',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const rut = document.getElementById('swal-input-rut').value;
+                const nombre = document.getElementById('swal-input-nombre').value;
+                if (!rut || !nombre) {
+                    Swal.showValidationMessage('Por favor completa ambos campos');
+                    return false;
+                }
+                return { rut, nombre };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({ title: 'Actualizando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+            
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ 
+                    action: 'edit_alumno', 
+                    payload: { idCurso: this.activeCursoId, oldRut: oldRut, newRut: formValues.rut, newNombre: formValues.nombre } 
+                })
+            }).then(() => {
+                // Actualizar memoria
+                const alumno = this.alumnosData.find(a => a[2] === oldRut && String(a[1]) === String(this.activeCursoId));
+                if (alumno) {
+                    alumno[2] = formValues.rut;
+                    alumno[3] = formValues.nombre;
+                }
+                this.seleccionarCurso(this.activeCursoId);
+                Swal.fire('¡Actualizado!', 'Los datos del alumno han sido guardados.', 'success');
+            });
+        }
+    }
+
+    async importStudents() {
+        if (!this.activeCursoId) {
+            return Swal.fire('Atención', 'Primero debes seleccionar o crear un curso en la lista.', 'warning');
+        }
+
+        const { value: pastedText } = await Swal.fire({
+            title: 'Importar desde Excel',
+            input: 'textarea',
+            inputLabel: 'Copia desde tu Excel y pega aquí:',
+            inputPlaceholder: 'N° Lista (opcional)   |   RUT   |   Nombre Completo\n1    21.123.456-7    Juan Pérez',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-upload"></i> Importar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) return 'Debes pegar el texto de Excel';
+            }
+        });
+
+        if (pastedText) {
+            const lineas = pastedText.trim().split('\n');
+            const alumnosNuevos = [];
+            
+            lineas.forEach(linea => {
+                const columnas = linea.split('\t').map(c => c.trim());
+                if (columnas.length >= 2) {
+                    let rut = "", nombre = "";
+                    // Si tiene 3 columnas, asumimos N° Lista | RUT | Nombre
+                    if (columnas.length >= 3) {
+                        rut = columnas[1];
+                        nombre = columnas[2];
+                    } else {
+                        // Si tiene 2, asumimos RUT | Nombre
+                        rut = columnas[0];
+                        nombre = columnas[1];
+                    }
+                    
+                    if (rut && nombre && rut.toLowerCase() !== 'rut' && !rut.toLowerCase().includes('lista')) {
+                        alumnosNuevos.push({ rut, nombre });
+                    }
+                }
+            });
+
+            if (alumnosNuevos.length === 0) {
+                return Swal.fire('Error', 'No se detectaron datos válidos. Asegúrate de copiar las columnas de RUT y Nombre desde tu planilla.', 'error');
+            }
+
+            Swal.fire({ title: `Importando ${alumnosNuevos.length} alumnos...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'import_alumnos', payload: { idCurso: this.activeCursoId, alumnos: alumnosNuevos } })
+            }).then(() => {
+                alumnosNuevos.forEach(al => {
+                    this.alumnosData.push(['ALU-TEMP', this.activeCursoId, al.rut, al.nombre, 'N/A']);
+                });
+                this.seleccionarCurso(this.activeCursoId);
+                Swal.fire('¡Importación Exitosa!', `Se han importado ${alumnosNuevos.length} alumnos correctamente.`, 'success');
+            }).catch(() => {
+                Swal.fire('Error', 'Ocurrió un error en la conexión.', 'error');
             });
         }
     }

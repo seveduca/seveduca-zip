@@ -53,6 +53,12 @@ function doPost(e) {
       case 'add_alumno':
         response = addAlumno(data.payload);
         break;
+      case 'edit_alumno':
+        response = editAlumno(data.payload);
+        break;
+      case 'import_alumnos':
+        response = importAlumnos(data.payload);
+        break;
       case 'delete_alumno':
         response = deleteAlumno(data.payload);
         break;
@@ -144,6 +150,34 @@ function addAlumno(payload) {
   // payload: { idCurso, rut, nombre }
   sheet.appendRow([idAlumno, payload.idCurso, payload.rut, payload.nombre, "N/A"]);
   return { success: true, id: idAlumno, rut: payload.rut, nombre: payload.nombre };
+}
+
+function editAlumno(payload) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Alumnos');
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][2] === payload.oldRut && String(data[i][1]) === String(payload.idCurso)) {
+      sheet.getRange(i + 1, 3).setValue(payload.newRut);
+      sheet.getRange(i + 1, 4).setValue(payload.newNombre);
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Alumno no encontrado" };
+}
+
+function importAlumnos(payload) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Alumnos');
+  const newRows = payload.alumnos.map((al, index) => {
+    const idAlumno = "ALU-" + new Date().getTime() + "-" + index;
+    return [idAlumno, payload.idCurso, al.rut, al.nombre, "N/A"];
+  });
+  
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 5).setValues(newRows);
+  }
+  return { success: true, count: newRows.length };
 }
 
 function deleteAlumno(payload) {
