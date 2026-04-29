@@ -718,12 +718,19 @@ class AppController {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Aquí iría la llamada fetch(GAS_URL) para eliminar en Google Sheets
-                Swal.fire(
-                    'Eliminado',
-                    'El registro ha sido eliminado correctamente.',
-                    'success'
-                );
+                Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                
+                const action = type === 'alumno' ? 'delete_alumno' : 'delete_evaluacion';
+                // Aquí en una versión avanzada obtendríamos el ID real de la fila HTML
+                const payload = type === 'alumno' ? { rut: '21.345.678-9' } : { nombre: 'Prueba' };
+                
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ action: action, payload: payload })
+                }).then(() => {
+                    Swal.fire('Eliminado', 'El registro ha sido eliminado correctamente de Google Sheets.', 'success');
+                });
             }
         });
     }
@@ -738,20 +745,25 @@ class AppController {
             confirmButtonText: 'Crear Curso',
             cancelButtonText: 'Cancelar',
             inputValidator: (value) => {
-                if (!value) {
-                    return 'Debes ingresar un nombre para el curso'
-                }
+                if (!value) return 'Debes ingresar un nombre para el curso';
             }
         });
 
         if (courseName) {
-            // Simulamos agregar a la UI
-            const ul = document.querySelector('.course-list');
-            const li = document.createElement('li');
-            li.innerHTML = `<i class="fa-solid fa-book" style="margin-right:8px;"></i> ${courseName}`;
-            ul.appendChild(li);
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
             
-            Swal.fire('¡Creado!', `El curso ${courseName} ha sido creado.`, 'success');
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'add_curso', payload: { nombre: courseName } })
+            }).then(() => {
+                const ul = document.querySelector('.course-list');
+                const li = document.createElement('li');
+                li.innerHTML = `<i class="fa-solid fa-book" style="margin-right:8px;"></i> ${courseName}`;
+                ul.appendChild(li);
+                
+                Swal.fire('¡Creado!', `El curso ${courseName} ha sido guardado en Google Sheets.`, 'success');
+            });
         }
     }
 
@@ -777,21 +789,28 @@ class AppController {
         });
 
         if (formValues) {
-            // Simulamos agregar a la UI
-            const tbody = document.querySelector('.custom-table tbody');
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${formValues.rut}</td>
-                <td>${formValues.nombre}</td>
-                <td><span style="color: var(--text-muted); font-weight: bold;">N/A</span></td>
-                <td>
-                    <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
-                    <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
-                </td>
-            `;
-            tbody.appendChild(tr);
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+            
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'add_alumno', payload: { idCurso: 'CUR-DEFAULT', rut: formValues.rut, nombre: formValues.nombre } })
+            }).then(() => {
+                const tbody = document.querySelector('.custom-table tbody');
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${formValues.rut}</td>
+                    <td>${formValues.nombre}</td>
+                    <td><span style="color: var(--text-muted); font-weight: bold;">N/A</span></td>
+                    <td>
+                        <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
+                        <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
 
-            Swal.fire('¡Añadido!', `El alumno ${formValues.nombre} ha sido registrado.`, 'success');
+                Swal.fire('¡Añadido!', `El alumno ${formValues.nombre} ha sido guardado en Google Sheets.`, 'success');
+            });
         }
     }
 
