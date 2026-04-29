@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -1464,116 +1464,239 @@ class AppController {
         requestAnimationFrame(() => this.processFrame());
     }
 
-    // Calificación real usando la pauta guardada en Sheets
+    // ================================================================
+    // MOTOR OMR REAL - Helpers
+    // ================================================================
+
+    // Ordena 4 puntos como [TL, TR, BR, BL]
+    sortCorners(pts) {
+        const sorted = pts.slice().sort((a, b) => a.y - b.y);
+        const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x);
+        const bot = sorted.slice(2, 4).sort((a, b) => a.x - b.x);
+        return [top[0], top[1], bot[1], bot[0]];
+    }
+
+    // Warp del papel detectado a 800x1100px
+    warpPerspectivePaper(src, paperContour) {
+        const W = 800, H = 1100;
+        const rawPts = [];
+        for (let i = 0; i < 4; i++) {
+            rawPts.push({ x: paperContour.data32S[i * 2], y: paperContour.data32S[i * 2 + 1] });
+        }
+        const [tl, tr, br, bl] = this.sortCorners(rawPts);
+        const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y]);
+        const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, W, 0, W, H, 0, H]);
+        const M = cv.getPerspectiveTransform(srcPts, dstPts);
+        const warped = new cv.Mat();
+        cv.warpPerspective(src, warped, M, new cv.Size(W, H));
+        srcPts.delete(); dstPts.delete(); M.delete();
+        return warped;
+    }
+
+    // Lee burbujas desde imagen warpada 800x1100.
+    // Posiciones calculadas desde el CSS de hoja_respuestas.html
+    readBubbles(warped, numPreguntas) {
+        const W = 800, H = 1100;
+        let gray = new cv.Mat();
+        cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY);
+        let thresh = new cv.Mat();
+        // THRESH_BINARY_INV: burbujas rellenas (oscuras) -> blancas en thresh
+        cv.threshold(gray, thresh, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+
+        // Posiciones de columnas en px (scale: 800px = 21cm)
+        const colStarts  = [53, 229, 405, 581]; // X inicio de cada columna
+        const qNumW      = 16;                   // ancho num pregunta
+        const cellW      = 29.8;                 // ancho celda burbuja
+        const bubOffsets = [0,1,2,3,4].map(i => qNumW + cellW * (i + 0.5)); // centros A-E
+        const answersTopY = 204; // Y inicio grilla (calc desde CSS)
+        const colHeaderH  = 18;
+        const rowH        = 20;
+        const colSize     = Math.ceil(numPreguntas / 4);
+        const sampleR     = 7;   // radio muestreo
+        const FILL_MIN    = 60;  // umbral fill (0-255)
+
+        const answers = [];
+        for (let q = 0; q < numPreguntas; q++) {
+            const col    = Math.floor(q / colSize);
+            const rowIdx = q % colSize;
+            if (col >= 4) break;
+            const rowCY = answersTopY + colHeaderH + rowIdx * rowH + rowH / 2;
+
+            let maxFill = 0, selected = null;
+            for (let b = 0; b < 5; b++) {
+                const bx = Math.round(colStarts[col] + bubOffsets[b]);
+                const by = Math.round(rowCY);
+                const x0 = Math.max(0, bx - sampleR), y0 = Math.max(0, by - sampleR);
+                const x1 = Math.min(W - 1, bx + sampleR), y1 = Math.min(H - 1, by + sampleR);
+                if (x1 <= x0 || y1 <= y0) continue;
+                const roi = thresh.roi(new cv.Rect(x0, y0, x1 - x0, y1 - y0));
+                const fill = cv.mean(roi)[0];
+                roi.delete();
+                if (fill > maxFill) { maxFill = fill; selected = ['A','B','C','D','E'][b]; }
+            }
+            answers.push(maxFill > FILL_MIN ? selected : null);
+        }
+        gray.delete(); thresh.delete();
+        return answers;
+    }
+
+    // ================================================================
+    // CAPTURA Y CALIFICACION - Motor OMR Real
+    // ================================================================
     capturarYCalificar() {
         if (!cvReady) {
-            Swal.fire('Error', 'El motor de escaneo (OpenCV) aún no está cargado.', 'error');
+            Swal.fire('Error', 'El motor de escaneo (OpenCV) aun no esta cargado.', 'error');
             return;
         }
-        
         if (!this.activeEvaluacionId || !this.activeAlumnoRut) {
             Swal.fire({
                 title: 'Configura el escaneo',
-                html: 'Ve a <b>Evaluaciones</b>, elige una evaluación y presiona <b>"Escanear con esta pauta"</b> para seleccionar el alumno antes de capturar.',
+                html: 'Ve a <b>Evaluaciones</b>, elige una evaluacion y presiona <b>"Escanear con esta pauta"</b>.',
                 icon: 'info'
             });
             return;
         }
 
         this.processing = false;
-        const frameData = this.canvasElement.toDataURL('image/jpeg', 0.8);
 
-        const eval_ = this.evaluacionesData.find(e => e[0] === this.activeEvaluacionId);
-        const alumno = this.alumnosData.find(a => a[2] === this.activeAlumnoRut);
-        
-        const evalNombre = eval_ ? eval_[1] : 'Evaluación';
+        // Capturar frame
+        this.ctx.drawImage(this.videoElement, 0, 0, this.canvasElement.width, this.canvasElement.height);
+        const frameData = this.canvasElement.toDataURL('image/jpeg', 0.9);
+
+        // Detectar papel
+        let src = cv.imread(this.canvasElement);
+        let gray = new cv.Mat(), blurred = new cv.Mat(), edges = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+        cv.Canny(blurred, edges, 50, 180);
+        let contours = new cv.MatVector(), hierarchy = new cv.Mat();
+        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        let maxArea = 0, paperContour = null;
+        for (let i = 0; i < contours.size(); i++) {
+            const cnt = contours.get(i);
+            const area = cv.contourArea(cnt);
+            if (area > 30000) {
+                const peri = cv.arcLength(cnt, true);
+                const approx = new cv.Mat();
+                cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                if (approx.rows === 4 && area > maxArea) {
+                    maxArea = area;
+                    if (paperContour) paperContour.delete();
+                    paperContour = approx;
+                } else { approx.delete(); }
+            }
+            cnt.delete();
+        }
+        gray.delete(); blurred.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+
+        const eval_        = this.evaluacionesData.find(e => e[0] === this.activeEvaluacionId);
+        const alumno       = this.alumnosData.find(a => a[2] === this.activeAlumnoRut);
+        const evalNombre   = eval_ ? eval_[1] : 'Evaluacion';
         const alumnoNombre = alumno ? alumno[3] : this.activeAlumnoRut;
-        const pautaStr = eval_ ? (eval_[5] || '') : '';
+        const pautaStr     = (eval_ && eval_[5]) ? String(eval_[5]).toUpperCase() : '';
         const numPreguntas = eval_ ? parseInt(eval_[4] || 10) : 10;
 
-        Swal.fire({
-            title: 'Procesando...',
-            html: 'Analizando hoja con OpenCV...',
-            allowOutsideClick: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
+        let notaGenerada, puntajeGenerado, respuestasAlumno;
 
-        // Si hay pauta real, simulamos lectura vs pauta; si no, nota aleatoria de demo
-        let notaGenerada, puntajeGenerado;
-        if (pautaStr.length === numPreguntas) {
-            // Simular respuestas del alumno (base para cuando tengamos OMR real)
-            let correctas = 0;
-            const respuestasAlumno = [];
-            for (let i = 0; i < numPreguntas; i++) {
-                const opciones = ['A','B','C','D','E'];
-                const resp = opciones[Math.floor(Math.random() * opciones.length)];
-                respuestasAlumno.push(resp);
-                if (resp === pautaStr[i]) correctas++;
+        if (paperContour) {
+            Swal.fire({ title: 'Leyendo hoja...', html: 'Procesando con OpenCV.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                const warped = this.warpPerspectivePaper(src, paperContour);
+                respuestasAlumno = this.readBubbles(warped, numPreguntas);
+                warped.delete();
+            } catch(e) {
+                console.warn('OMR error:', e);
+                respuestasAlumno = null;
             }
-            puntajeGenerado = correctas;
-            // Escala: 1.0 mínimo, 7.0 máximo
-            notaGenerada = (1.0 + (correctas / numPreguntas) * 6.0).toFixed(1);
+            paperContour.delete();
+
+            if (respuestasAlumno && pautaStr.length === numPreguntas) {
+                let correctas = 0;
+                respuestasAlumno.forEach((r, i) => { if (r === pautaStr[i]) correctas++; });
+                puntajeGenerado = correctas;
+                notaGenerada    = (1.0 + (correctas / numPreguntas) * 6.0).toFixed(1);
+            } else if (respuestasAlumno) {
+                puntajeGenerado = respuestasAlumno.filter(r => r).length;
+                notaGenerada    = 'S/N';
+            } else {
+                puntajeGenerado = 0; notaGenerada = 'Error';
+            }
         } else {
-            // Sin pauta cargada: modo demo
-            puntajeGenerado = Math.floor(Math.random() * numPreguntas);
-            notaGenerada = (Math.random() * (7.0 - 2.0) + 2.0).toFixed(1);
+            src.delete();
+            Swal.fire({
+                title: 'Hoja no detectada',
+                html: 'No se detecto la hoja.<br>Mejora la iluminacion y centra la hoja en la camara.',
+                icon: 'warning',
+                confirmButtonText: 'Reintentar'
+            }).then(() => this.startProcessing());
+            return;
         }
+        src.delete();
 
         const aprobado = parseFloat(notaGenerada) >= 4.0;
-        const color = aprobado ? '#10b981' : '#ef4444';
+        const color    = aprobado ? '#10b981' : '#ef4444';
 
-        // Guardar resultado en Sheets (actualiza también Ultima_Nota del alumno)
-        fetch(GAS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'guardar_resultado',
-                payload: {
-                    evaluacionId: this.activeEvaluacionId,
-                    rutAlumno: this.activeAlumnoRut,
-                    nota: notaGenerada,
-                    puntaje: puntajeGenerado,
-                    respuestas: { total: numPreguntas, correctas: puntajeGenerado }
-                }
-            })
-        }).then(() => {
-            // Actualizar Ultima_Nota en memoria local
-            if (alumno) alumno[4] = notaGenerada;
-            console.log('✅ Resultado guardado en Google Sheets y Ultima_Nota actualizada.');
-        });
+        // Guardar en Sheets
+        if (notaGenerada !== 'S/N' && notaGenerada !== 'Error') {
+            fetch(GAS_URL, {
+                method: 'POST', mode: 'no-cors',
+                body: JSON.stringify({
+                    action: 'guardar_resultado',
+                    payload: {
+                        evaluacionId: this.activeEvaluacionId,
+                        rutAlumno: this.activeAlumnoRut,
+                        nota: notaGenerada,
+                        puntaje: puntajeGenerado,
+                        respuestas: { total: numPreguntas, correctas: puntajeGenerado, detalle: respuestasAlumno }
+                    }
+                })
+            }).then(() => { if (alumno) alumno[4] = notaGenerada; });
+        }
+
+        // Tabla comparativa primeras 20 preguntas
+        let tablaHTML = '';
+        if (respuestasAlumno && pautaStr.length === numPreguntas) {
+            const celdas = respuestasAlumno.slice(0, 20).map((r, i) => {
+                const ok = r === pautaStr[i];
+                return `<td style="padding:1px 4px;text-align:center;color:${ok ? '#10b981' : '#ef4444'}">${i+1}:${r||'?'}</td>`;
+            }).join('');
+            tablaHTML = `<div style="font-size:0.7rem;margin-top:8px"><table style="width:100%;border-collapse:collapse"><tr>${celdas}</tr></table><p style="color:#64748b;font-size:0.65rem">Primeras 20 de ${numPreguntas} preguntas</p></div>`;
+        }
 
         setTimeout(() => {
             Swal.fire({
-                title: '¡Calificación Exitosa!',
+                title: '¡Hoja Calificada!',
                 html: `
-                    <div style="font-size: 3.5rem; font-weight: bold; color: ${color}; margin: 16px 0;">${notaGenerada}</div>
+                    <div style="font-size:3.5rem;font-weight:bold;color:${color};margin:12px 0">${notaGenerada}</div>
                     <p>Alumno: <b>${alumnoNombre}</b></p>
-                    <p>Evaluación: <b>${evalNombre}</b></p>
+                    <p>Evaluacion: <b>${evalNombre}</b></p>
                     <p>Puntaje: <b>${puntajeGenerado}/${numPreguntas}</b></p>
-                    <hr style="border-color: rgba(255,255,255,0.1); margin: 16px 0;">
-                    <p style="font-size: 0.85rem; color: #10b981;"><i class="fa-solid fa-check"></i> Guardado en Google Sheets</p>
+                    ${tablaHTML}
+                    <hr style="border-color:rgba(255,255,255,0.1);margin:12px 0">
+                    <p style="font-size:0.8rem;color:#10b981"><i class="fa-solid fa-check"></i> Guardado en Google Sheets</p>
                 `,
                 icon: aprobado ? 'success' : 'warning',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fa-solid fa-arrow-right"></i> Siguiente Hoja',
-                cancelButtonText: '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
+                cancelButtonText:  '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
                 cancelButtonColor: '#0ea5e9'
-            }).then((result) => {
+            }).then(result => {
                 if (result.dismiss === Swal.DismissReason.cancel) {
                     this.generateStudentPDF(notaGenerada, alumnoNombre, frameData);
                 } else {
                     this.startProcessing();
                 }
             });
-        }, 800);
+        }, 600);
     }
 }
 
-// Iniciar aplicación
+// Iniciar aplicacion
 const app = new AppController();
 
 </script>
+
 </body>
 </html>
-
