@@ -682,6 +682,10 @@ function onOpenCvReady() {
 
 class AppController {
     constructor() {
+        this.cursosData = [];
+        this.alumnosData = [];
+        this.activeCursoId = null;
+        
         this.initNavigation();
         this.loadData(); // Cargar datos desde Google Sheets al iniciar
         
@@ -716,8 +720,15 @@ class AppController {
         // Definir callback global para JSONP
         window.jsonpCallback = (data) => {
             if (data.success) {
-                this.renderCursos(data.cursos);
-                this.renderAlumnos(data.alumnos);
+                this.cursosData = data.cursos || [];
+                this.alumnosData = data.alumnos || [];
+                this.renderCursos(this.cursosData);
+                
+                if (this.cursosData.length > 0) {
+                    this.seleccionarCurso(this.cursosData[0][0]); // Cargar alumnos del primer curso
+                } else {
+                    this.renderAlumnos([]);
+                }
             }
             // Limpiar script del DOM
             const script = document.getElementById('jsonp-script');
@@ -746,20 +757,34 @@ class AppController {
             return;
         }
 
-        cursos.forEach((curso, index) => {
+        cursos.forEach((curso) => {
             const li = document.createElement('li');
-            if (index === 0) li.classList.add('active'); // Primero activo por defecto
-            
-            // Leemos desde el índice 1 del array (Nombre)
+            li.setAttribute('data-id', curso[0]);
             const nombreCurso = curso[1] || "Curso sin nombre";
             li.innerHTML = `<i class="fa-solid fa-book" style="margin-right:8px;"></i> ${nombreCurso}`;
             ul.appendChild(li);
         });
+    }
+
+    seleccionarCurso(idCurso) {
+        this.activeCursoId = idCurso;
+        const curso = this.cursosData.find(c => c[0] === idCurso);
+        if (!curso) return;
         
-        // Actualizar título de la tabla
+        // Actualizar título
         const titleEl = document.getElementById('table-course-title');
-        const primerCurso = cursos[0][1] || "Curso sin nombre";
-        if (titleEl) titleEl.innerText = `Alumnos: ${primerCurso}`;
+        const nombreCurso = curso[1] || "Curso sin nombre";
+        if (titleEl) titleEl.innerText = `Alumnos: ${nombreCurso}`;
+        
+        // Actualizar clase activa en UI
+        document.querySelectorAll('.course-list li').forEach(el => {
+            if (el.getAttribute('data-id') === idCurso) el.classList.add('active');
+            else el.classList.remove('active');
+        });
+        
+        // Filtrar y renderizar alumnos
+        const alumnosFiltrados = this.alumnosData.filter(a => String(a[1]) === String(idCurso));
+        this.renderAlumnos(alumnosFiltrados);
     }
 
     renderAlumnos(alumnos) {
@@ -790,14 +815,14 @@ class AppController {
                 <td><span style="color: ${colorNota}; font-weight: bold;">${nota}</span></td>
                 <td>
                     <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
-                    <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
+                    <button class="icon-btn danger" onclick="app.confirmDelete('alumno', '${rut}')"><i class="fa-solid fa-trash"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    confirmDelete(type) {
+    confirmDelete(type, idString) {
         const title = type === 'alumno' ? '¿Eliminar alumno?' : '¿Eliminar evaluación?';
         const text = type === 'alumno' ? 'Los registros históricos asociados a este alumno se mantendrán, pero no aparecerá más en las listas de este curso.' : 'Se borrará la pauta y no se podrán escanear más hojas de respuestas para esta evaluación.';
         
@@ -815,14 +840,18 @@ class AppController {
                 Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
                 
                 const action = type === 'alumno' ? 'delete_alumno' : 'delete_evaluacion';
-                // Aquí en una versión avanzada obtendríamos el ID real de la fila HTML
-                const payload = type === 'alumno' ? { rut: '21.345.678-9' } : { nombre: 'Prueba' };
+                const payload = type === 'alumno' ? { rut: idString } : { nombre: idString };
                 
                 fetch(GAS_URL, {
                     method: 'POST',
                     mode: 'no-cors',
                     body: JSON.stringify({ action: action, payload: payload })
                 }).then(() => {
+                    // Actualizamos memoria y UI
+                    if (type === 'alumno') {
+                        this.alumnosData = this.alumnosData.filter(a => a[2] !== idString);
+                        this.seleccionarCurso(this.activeCursoId);
+                    }
                     Swal.fire('Eliminado', 'El registro ha sido eliminado correctamente de Google Sheets.', 'success');
                 });
             }
@@ -851,10 +880,11 @@ class AppController {
                 mode: 'no-cors',
                 body: JSON.stringify({ action: 'add_curso', payload: { nombre: courseName } })
             }).then(() => {
-                const ul = document.querySelector('.course-list');
-                const li = document.createElement('li');
-                li.innerHTML = `<i class="fa-solid fa-book" style="margin-right:8px;"></i> ${courseName}`;
-                ul.appendChild(li);
+                // Actualizar memoria (Asignamos un ID falso por ahora, se sincronizará al recargar)
+                const newId = "CUR-" + new Date().getTime();
+                this.cursosData.push([newId, courseName, new Date()]);
+                this.renderCursos(this.cursosData);
+                this.seleccionarCurso(newId);
                 
                 Swal.fire('¡Creado!', `El curso ${courseName} ha sido guardado en Google Sheets.`, 'success');
             });
@@ -888,20 +918,11 @@ class AppController {
             fetch(GAS_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                body: JSON.stringify({ action: 'add_alumno', payload: { idCurso: 'CUR-DEFAULT', rut: formValues.rut, nombre: formValues.nombre } })
+                body: JSON.stringify({ action: 'add_alumno', payload: { idCurso: this.activeCursoId, rut: formValues.rut, nombre: formValues.nombre } })
             }).then(() => {
-                const tbody = document.querySelector('.custom-table tbody');
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${formValues.rut}</td>
-                    <td>${formValues.nombre}</td>
-                    <td><span style="color: var(--text-muted); font-weight: bold;">N/A</span></td>
-                    <td>
-                        <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
-                        <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                // Actualizar memoria
+                this.alumnosData.push(['ALU-TEMP', this.activeCursoId, formValues.rut, formValues.nombre, 'N/A']);
+                this.seleccionarCurso(this.activeCursoId); // Re-render
 
                 Swal.fire('¡Añadido!', `El alumno ${formValues.nombre} ha sido guardado en Google Sheets.`, 'success');
             });
@@ -923,24 +944,8 @@ class AppController {
             courseList.addEventListener('click', (e) => {
                 const li = e.target.closest('li');
                 if (li) {
-                    // Quitar active a todos
-                    document.querySelectorAll('.course-list li').forEach(el => el.classList.remove('active'));
-                    // Poner active al clickeado
-                    li.classList.add('active');
-                    
-                    // Actualizar título
-                    const courseName = li.innerText.trim();
-                    const titleEl = document.getElementById('table-course-title');
-                    if (titleEl) titleEl.innerText = `Alumnos: ${courseName}`;
-                    
-                    // Simular carga de alumnos
-                    const tbody = document.querySelector('.custom-table tbody');
-                    if (tbody) {
-                        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Cargando alumnos...</td></tr>`;
-                        setTimeout(() => {
-                            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No hay alumnos registrados en este curso aún.</td></tr>`;
-                        }, 500);
-                    }
+                    const idCurso = li.getAttribute('data-id');
+                    if (idCurso) this.seleccionarCurso(idCurso);
                 }
             });
         }
