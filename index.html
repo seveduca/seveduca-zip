@@ -1400,7 +1400,7 @@ class AppController {
             let hierarchy = new cv.Mat();
             cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
             
-            // 5. Buscar el contorno más grande que parezca un papel (4 esquinas)
+            // 5. Buscar el contorno más grande que parezca un papel (4 esquinas + Proporción A4)
             let maxArea = 0;
             let paperContour = null;
             
@@ -1408,15 +1408,26 @@ class AppController {
                 let cnt = contours.get(i);
                 let area = cv.contourArea(cnt);
                 
-                if (area > 50000) { // Ignorar ruido pequeño (el área dependerá de la resolución)
+                if (area > 40000) { 
                     let peri = cv.arcLength(cnt, true);
                     let approx = new cv.Mat();
                     cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
                     
-                    if (approx.rows === 4 && area > maxArea) {
-                        maxArea = area;
-                        if (paperContour) paperContour.delete(); // Limpiar memoria anterior
-                        paperContour = approx;
+                    if (approx.rows === 4) {
+                        // Calcular proporcion (aspect ratio) para evitar cuadros u objetos no-papel
+                        let rect = cv.minAreaRect(cnt);
+                        let w = rect.size.width;
+                        let h = rect.size.height;
+                        let ar = Math.max(w, h) / Math.min(w, h);
+                        
+                        // Proporción A4 es ~1.41. Aceptamos entre 1.2 y 1.7
+                        if (ar > 1.1 && ar < 1.8 && area > maxArea) {
+                            maxArea = area;
+                            if (paperContour) paperContour.delete();
+                            paperContour = approx;
+                        } else {
+                            approx.delete();
+                        }
                     } else {
                         approx.delete();
                     }
@@ -1424,26 +1435,24 @@ class AppController {
                 cnt.delete();
             }
             
-            // 6. Dibujar guía visual (Realidad Aumentada) sobre el output-canvas
+            // 6. Dibujar guía visual
             const outCtx = this.outputCanvas.getContext('2d');
             outCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
             
             if (paperContour) {
-                // Dibujar un polígono verde semi-transparente sobre la hoja detectada
                 outCtx.beginPath();
                 for (let i = 0; i < 4; i++) {
-                    let point = paperContour.data32S; // Array de puntos [x,y, x,y, ...]
+                    let point = paperContour.data32S;
                     if (i === 0) outCtx.moveTo(point[0], point[1]);
                     else outCtx.lineTo(point[i*2], point[i*2+1]);
                 }
                 outCtx.closePath();
-                outCtx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+                outCtx.fillStyle = 'rgba(16, 185, 129, 0.25)';
                 outCtx.fill();
-                outCtx.lineWidth = 4;
-                outCtx.strokeStyle = '#10b981'; // success color
+                outCtx.lineWidth = 3;
+                outCtx.strokeStyle = '#10b981';
                 outCtx.stroke();
                 
-                // Actualizar UI: Mostrar que estamos listos para capturar
                 this.btnCapture.classList.add('ready');
                 this.btnCapture.innerHTML = `<i class="fa-solid fa-check"></i> Hoja Detectada - Calificar`;
                 
@@ -1453,7 +1462,6 @@ class AppController {
                 this.btnCapture.innerHTML = `<i class="fa-solid fa-crosshairs"></i> Capturar y Calificar`;
             }
 
-            // Liberar memoria (¡CRÍTICO EN OPENCV.JS PARA EVITAR MEMORY LEAKS!)
             src.delete(); gray.delete(); blurred.delete(); edges.delete(); contours.delete(); hierarchy.delete();
 
         } catch (err) {
@@ -1494,92 +1502,61 @@ class AppController {
     }
 
     // Lee burbujas desde imagen warpada 800x1100.
-    // Posiciones calculadas desde el CSS de hoja_respuestas.html
     readBubbles(warped, numPreguntas) {
         const W = 800, H = 1100;
         let gray = new cv.Mat();
         cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY);
         
-        // Umbral adaptativo para manejar sombras
         let thresh = new cv.Mat();
-        cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, 8);
+        // Aumentamos el bloque C para ser menos sensibles al ruido de fondo
+        cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 19, 10);
 
-        // --- COORDENADAS PRECISAS (800x1100) ---
         const pxPerCm = 800 / 21; 
         const colStarts = [
-            1.2 * pxPerCm,                     // Col 1
-            (1.2 + 4.46 + 0.25) * pxPerCm,     // Col 2
-            (1.2 + 2*(4.46 + 0.25)) * pxPerCm, // Col 3
-            (1.2 + 3*(4.46 + 0.25)) * pxPerCm  // Col 4
+            1.1 * pxPerCm,                     // Col 1
+            (1.1 + 4.46 + 0.25) * pxPerCm,     // Col 2
+            (1.1 + 2*(4.46 + 0.25)) * pxPerCm, // Col 3
+            (1.1 + 3*(4.46 + 0.25)) * pxPerCm  // Col 4
         ];
         
-        const qNumW = 0.6 * pxPerCm;  // Ancho del numero de pregunta
-        const cellW = 0.77 * pxPerCm; // Ancho de cada celda de burbuja
-        const rowH  = 0.52 * pxPerCm; // Altura de cada fila
-        
-        // Y de inicio (Header 1.4 + Student 1.8 + Instr 0.8 + Margins 1.1)
-        const answersTopY = 5.1 * pxPerCm; 
+        const qNumW = 0.55 * pxPerCm; 
+        const cellW = 0.77 * pxPerCm; 
+        const rowH  = 0.52 * pxPerCm; 
+        const answersTopY = 5.0 * pxPerCm; 
         const colHeaderH  = 0.4 * pxPerCm;
 
         const colSize = Math.ceil(numPreguntas / 4);
-        const sampleR = Math.round(0.18 * pxPerCm); // Radio de la burbuja ~7px
-        const FILL_THRESHOLD = 40; // Ajustado para adaptive threshold
+        const sampleR = Math.round(0.16 * pxPerCm); 
+        const FILL_THRESHOLD = 35; 
+
+        // Creamos una copia para el debug que se mostrará después
+        this.lastWarpedDebug = warped.clone();
 
         const answers = [];
-        
-        // Dibujamos debug si es necesario (en un canvas oculto o visible para calibrar)
-        let debugCanvas = document.getElementById('debug-omr');
-        let dctx = debugCanvas ? debugCanvas.getContext('2d') : null;
-        if (dctx) {
-            debugCanvas.width = W; debugCanvas.height = H;
-            cv.imshow('debug-omr', warped);
-        }
-
         for (let q = 0; q < numPreguntas; q++) {
             const col    = Math.floor(q / colSize);
             const rowIdx = q % colSize;
             if (col >= 4) break;
-
             const rowCY = answersTopY + colHeaderH + rowIdx * rowH + rowH / 2;
 
-            let maxFill = 0;
-            let selected = null;
-            let bubbleStats = [];
-
+            let maxFill = 0, selected = null;
             for (let b = 0; b < 5; b++) {
                 const bx = colStarts[col] + qNumW + cellW * (b + 0.5);
                 const by = rowCY;
-
-                const x0 = Math.max(0, Math.round(bx - sampleR));
-                const y0 = Math.max(0, Math.round(by - sampleR));
-                const x1 = Math.min(W - 1, Math.round(bx + sampleR));
-                const y1 = Math.min(H - 1, Math.round(by + sampleR));
-
+                const x0 = Math.max(0, Math.round(bx - sampleR)), y0 = Math.max(0, Math.round(by - sampleR));
+                const x1 = Math.min(W - 1, Math.round(bx + sampleR)), y1 = Math.min(H - 1, Math.round(by + sampleR));
                 if (x1 <= x0 || y1 <= y0) continue;
-
                 const roi = thresh.roi(new cv.Rect(x0, y0, x1 - x0, y1 - y0));
                 const fill = cv.mean(roi)[0];
                 roi.delete();
-
-                bubbleStats.push({ l: ['A','B','C','D','E'][b], f: fill, x: bx, y: by });
-
-                if (fill > maxFill) {
-                    maxFill = fill;
-                    selected = ['A','B','C','D','E'][b];
-                }
+                if (fill > maxFill) { maxFill = fill; selected = ['A','B','C','D','E'][b]; }
                 
-                if (dctx) {
-                    dctx.strokeStyle = fill > FILL_THRESHOLD ? '#00ff00' : '#ff0000';
-                    dctx.lineWidth = 1;
-                    dctx.strokeRect(x0, y0, x1-x0, y1-y0);
-                }
+                // Dibujar puntos de muestreo en la imagen de debug
+                cv.rectangle(this.lastWarpedDebug, new cv.Point(x0, y0), new cv.Point(x1, y1), 
+                             fill > FILL_THRESHOLD ? new cv.Scalar(0, 255, 0, 255) : new cv.Scalar(255, 0, 0, 255), 1);
             }
-
-            // Validar si el contraste entre la mejor y la segunda mejor es suficiente
-            // o si simplemente supera el umbral
             answers.push(maxFill > FILL_THRESHOLD ? selected : null);
         }
-
         gray.delete(); thresh.delete();
         return answers;
     }
@@ -1722,7 +1699,7 @@ class AppController {
                         <p style="font-size:0.6rem; background:#1e293b; padding:4px; margin:0;">Vista de Calibración OMR</p>
                         <canvas id="debug-omr" style="width:100%; height:auto; display:block;"></canvas>
                     </div>
-                    <button class="btn-secondary" style="font-size:0.7rem; padding:4px 8px; margin-top:8px;" onclick="document.getElementById('omr-debug-container').style.display='block'">Ver Calibración</button>
+                    <button class="btn-secondary" style="font-size:0.7rem; padding:4px 8px; margin-top:8px;" onclick="document.getElementById('omr-debug-container').style.display='block'; if(app.lastWarpedDebug) cv.imshow('debug-omr', app.lastWarpedDebug);">Ver Calibración</button>
                     <hr style="border-color:rgba(255,255,255,0.1);margin:12px 0">
                     <p style="font-size:0.8rem;color:#10b981"><i class="fa-solid fa-check"></i> Guardado en Google Sheets</p>
                 `,
