@@ -1480,22 +1480,60 @@ class AppController {
     // MOTOR OMR REAL - Helpers
     // ================================================================
 
-    // Ordena 4 puntos como [TL, TR, BR, BL]
-    sortCorners(pts) {
-        const sorted = pts.slice().sort((a, b) => a.y - b.y);
-        const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x);
-        const bot = sorted.slice(2, 4).sort((a, b) => a.x - b.x);
-        return [top[0], top[1], bot[1], bot[0]];
+    // Busca los 4 marcadores negros (fiduciales) para una alineación perfecta
+    findFiducials(src, paperContour) {
+        let gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        let thresh = new cv.Mat();
+        cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, 10);
+
+        // Definir regiones de búsqueda en las 4 esquinas del papel detectado
+        const pts = [];
+        for (let i = 0; i < 4; i++) {
+            pts.push({ x: paperContour.data32S[i * 2], y: paperContour.data32S[i * 2 + 1] });
+        }
+        const sorted = this.sortCorners(pts); // [TL, TR, BR, BL]
+        
+        const fiducials = [];
+        const searchSize = 80; // px de búsqueda alrededor de cada esquina
+
+        sorted.forEach((corner, idx) => {
+            let x = Math.max(0, corner.x - searchSize/2);
+            let y = Math.max(0, corner.y - searchSize/2);
+            let w = Math.min(src.cols - x, searchSize);
+            let h = Math.min(src.rows - y, searchSize);
+            
+            let roi = thresh.roi(new cv.Rect(x, y, w, h));
+            let contours = new cv.MatVector(), hierarchy = new cv.Mat();
+            cv.findContours(roi, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            
+            let bestFid = null, maxA = 0;
+            for (let j = 0; j < contours.size(); j++) {
+                let cnt = contours.get(j);
+                let area = cv.contourArea(cnt);
+                let rect = cv.boundingRect(cnt);
+                let ar = rect.width / rect.height;
+                // Los fiduciales son cuadrados negros (~0.8cm)
+                if (area > 100 && ar > 0.7 && ar < 1.3 && area > maxA) {
+                    maxA = area;
+                    bestFid = { x: x + rect.x + rect.width/2, y: y + rect.y + rect.height/2 };
+                }
+                cnt.delete();
+            }
+            if (bestFid) fiducials.push(bestFid);
+            else fiducials.push(corner); // Fallback a la esquina del papel si no hay marcador
+            
+            roi.delete(); contours.delete(); hierarchy.delete();
+        });
+
+        gray.delete(); thresh.delete();
+        return fiducials;
     }
 
-    // Warp del papel detectado a 800x1100px
-    warpPerspectivePaper(src, paperContour) {
-        const W = 800, H = 1100;
-        const rawPts = [];
-        for (let i = 0; i < 4; i++) {
-            rawPts.push({ x: paperContour.data32S[i * 2], y: paperContour.data32S[i * 2 + 1] });
-        }
-        const [tl, tr, br, bl] = this.sortCorners(rawPts);
+    // Warp basado en los 4 fiduciales (Alineación Profesional)
+    warpPerspectiveFiducial(src, fiducials) {
+        const W = 1000, H = 1400; // Resolución fija para el área entre marcadores
+        const [tl, tr, br, bl] = fiducials;
         const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y]);
         const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, W, 0, W, H, 0, H]);
         const M = cv.getPerspectiveTransform(srcPts, dstPts);
@@ -1505,32 +1543,35 @@ class AppController {
         return warped;
     }
 
-    // Lee burbujas desde imagen warpada 800x1100.
-    readBubbles(warped, numPreguntas) {
-        const W = 800, H = 1100;
-        const pxPerCm = 800 / 21; 
+    // Lee burbujas usando el sistema de coordenadas RELATIVO a los marcadores
+    readBubblesFiducial(warped, numPreguntas) {
+        const W = 1000, H = 1400;
+        // La distancia real entre centros de marcadores en la hoja es:
+        // X: 20cm (20.5 - 0.5)
+        // Y: 28.7cm (29.2 - 0.5)
+        const pxPerCm = W / 20; 
 
         let gray = new cv.Mat();
         cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY);
-        
         let thresh = new cv.Mat();
         cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 21, 12);
 
-        // --- CALIBRACION DE COORDENADAS (AJUSTADO A REALIDAD IMPRESA) ---
-        // Margen Izq (1cm) + Padding (0.2cm) + Gap? = ~1.3cm
-        const colStarts = [1.3, 6.0, 10.7, 15.4].map(c => c * pxPerCm);
+        // Coordenadas relativas al marcador TL (que es 0,0 en el warp)
+        // El contenido empieza a 0.2cm (padding) + 0.5cm (dist desde marcador a borde contenido)
+        const xOffsetContent = 0.7 * pxPerCm; 
+        const colStarts = [0, 4.7, 9.4, 14.1].map(c => xOffsetContent + c * pxPerCm);
         
         const qNumW = 0.6 * pxPerCm;  
-        const cellW = 0.78 * pxPerCm; 
+        const cellW = 0.77 * pxPerCm; 
         const rowH  = 0.52 * pxPerCm; 
         
-        // Y de inicio: Margen (1cm) + Header (2cm) + Student (2.8cm) + Instr (1.5cm) = ~7.3cm
-        const answersTopY = 7.3 * pxPerCm; 
-        const colHeaderH  = 0.5 * pxPerCm;
+        // Y: Del marcador TL al inicio de la grilla hay aprox 6.0cm
+        const answersTopY = 6.0 * pxPerCm; 
+        const colHeaderH  = 0.4 * pxPerCm;
 
         const colSize = Math.ceil(numPreguntas / 4);
-        const sampleR = Math.round(0.22 * pxPerCm); // Aumentado para mayor tolerancia
-        const FILL_THRESHOLD = 25; // Mas sensible
+        const sampleR = Math.round(0.20 * pxPerCm); 
+        const FILL_THRESHOLD = 30; 
 
         if (window.lastWarpedMat) window.lastWarpedMat.delete();
         window.lastWarpedMat = warped.clone();
@@ -1559,6 +1600,12 @@ class AppController {
             }
             answers.push(maxF > FILL_THRESHOLD ? sel : null);
         }
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = W; tempCanvas.height = H;
+        cv.imshow(tempCanvas, window.lastWarpedMat);
+        this.lastDebugImageURL = tempCanvas.toDataURL();
+
         gray.delete(); thresh.delete();
         return answers;
     }
@@ -1635,8 +1682,12 @@ class AppController {
             Swal.fire({ title: 'Leyendo hoja...', html: 'Procesando con OpenCV.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                const warped = this.warpPerspectivePaper(src, paperContour);
-                respuestasAlumno = this.readBubbles(warped, numPreguntas);
+                // 1. Encontrar los marcadores negros (Fiduciales)
+                const fiducials = this.findFiducials(src, paperContour);
+                // 2. Warp perfecto usando los marcadores
+                const warped = this.warpPerspectiveFiducial(src, fiducials);
+                // 3. Leer burbujas en el nuevo sistema de coordenadas
+                respuestasAlumno = this.readBubblesFiducial(warped, numPreguntas);
                 warped.delete();
             } catch(e) {
                 console.warn('OMR error:', e);
