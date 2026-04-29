@@ -530,7 +530,7 @@ button {
                         <!-- Lista de alumnos -->
                         <div class="glass-panel" style="flex: 2; min-width: 400px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                <h3 style="font-size: 1.1rem;">Alumnos: 1° Medio A</h3>
+                                <h3 id="table-course-title" style="font-size: 1.1rem;">Alumnos: 1° Medio A</h3>
                                 <button class="btn-secondary" style="font-size: 0.85rem;" onclick="app.addStudent()"><i class="fa-solid fa-user-plus"></i> Añadir Alumno</button>
                             </div>
                             <div style="overflow-x: auto;">
@@ -822,6 +822,34 @@ class AppController {
                 if (targetId) this.navigateTo(targetId);
             });
         });
+
+        // Lógica interactiva para cambiar de curso
+        const courseList = document.querySelector('.course-list');
+        if (courseList) {
+            courseList.addEventListener('click', (e) => {
+                const li = e.target.closest('li');
+                if (li) {
+                    // Quitar active a todos
+                    document.querySelectorAll('.course-list li').forEach(el => el.classList.remove('active'));
+                    // Poner active al clickeado
+                    li.classList.add('active');
+                    
+                    // Actualizar título
+                    const courseName = li.innerText.trim();
+                    const titleEl = document.getElementById('table-course-title');
+                    if (titleEl) titleEl.innerText = `Alumnos: ${courseName}`;
+                    
+                    // Simular carga de alumnos
+                    const tbody = document.querySelector('.custom-table tbody');
+                    if (tbody) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Cargando alumnos...</td></tr>`;
+                        setTimeout(() => {
+                            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No hay alumnos registrados en este curso aún.</td></tr>`;
+                        }, 500);
+                    }
+                }
+            });
+        }
     }
 
     navigateTo(viewId) {
