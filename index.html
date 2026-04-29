@@ -377,9 +377,8 @@ button {
         <nav class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <i class="fa-solid fa-shield-halved" style="color: #f59e0b;"></i>
-                    <span>Seveduca<span>ZIP</span></span>
-                    <small style="font-size: 0.5rem; display: block; opacity: 0.5; margin-left: 28px;">v2.5 - Estabilidad Total</small>
+                    <i class="fa-solid fa-expand"></i>
+                    <h2>Seveduca<span>ZIP</span></h2>
                 </div>
             </div>
             <ul class="nav-links">
@@ -641,7 +640,6 @@ function onOpenCvReady() {
 
 class AppController {
     constructor() {
-        window.app = this; // Asegurar referencia global
         this.cursosData = [];
         this.alumnosData = [];
         this.evaluacionesData = [];
@@ -649,39 +647,27 @@ class AppController {
         this.activeAlumnoRut = null;
         this.activeEvaluacionId = null;
         
-        try {
-            this.cameraStream = null;
-            this.processing = false; 
-            this.videoElement = document.getElementById('camera-preview');
-            this.canvasElement = document.getElementById('camera-canvas');
-            this.outputCanvas = document.getElementById('output-canvas');
-            
-            if (this.canvasElement) {
-                this.ctx = this.canvasElement.getContext('2d', { willReadFrequently: true });
-            }
-            
-            this.btnCapture = document.getElementById('btn-capture');
-            this.btnSwitch = document.getElementById('btn-switch-camera');
-            
-            if (this.btnCapture) {
-                this.btnCapture.addEventListener('click', () => this.capturarYCalificar());
-            }
-            
-            this.facingMode = 'environment';
-            if (this.btnSwitch) {
-                this.btnSwitch.addEventListener('click', () => {
-                    this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
-                    this.initCamera();
-                });
-            }
-
-            this.initNavigation();
-            this.loadData();
-            
-            console.log("✅ SeveducaZIP Iniciado Correctamente");
-        } catch (e) {
-            console.error("❌ Error en Constructor:", e);
-        }
+        this.initNavigation();
+        this.loadData(); // Cargar datos desde Google Sheets al iniciar
+        
+        this.cameraStream = null;
+        this.processing = false; // Controla el bucle de procesamiento de video
+        this.videoElement = document.getElementById('camera-preview');
+        this.canvasElement = document.getElementById('camera-canvas');
+        this.outputCanvas = document.getElementById('output-canvas');
+        this.ctx = this.canvasElement.getContext('2d', { willReadFrequently: true });
+        
+        // Botones
+        this.btnCapture = document.getElementById('btn-capture');
+        this.btnSwitch = document.getElementById('btn-switch-camera');
+        
+        this.btnCapture.addEventListener('click', () => this.capturarYCalificar());
+        
+        this.facingMode = 'environment'; // Cámara trasera por defecto
+        this.btnSwitch.addEventListener('click', () => {
+            this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+            this.initCamera();
+        });
     }
 
     async loadData() {
@@ -1184,43 +1170,28 @@ class AppController {
     }
 
     initNavigation() {
-        console.log("🛠️ Iniciando Navegación v2.6...");
-        
-        // 1. Listeners de la barra lateral (Prioridad Máxima)
         const navItems = document.querySelectorAll('.nav-links li');
         navItems.forEach(item => {
-            item.style.cursor = 'pointer'; // Asegurar feedback visual
-            item.onclick = () => {
-                const targetId = item.getAttribute('data-target');
-                console.log("🖱️ Click en:", targetId);
+            item.addEventListener('click', (e) => {
+                const targetId = e.currentTarget.getAttribute('data-target');
                 if (targetId) this.navigateTo(targetId);
-            };
+            });
         });
 
-        try {
-            this.setupManualEvents();
-        } catch(e) { console.error("Error en setupManualEvents:", e); }
-        
-        // 2. Lógica para cambiar de curso
+        // Lógica interactiva para cambiar de curso
         const courseList = document.querySelector('.course-list');
         if (courseList) {
-            courseList.onclick = (e) => {
+            courseList.addEventListener('click', (e) => {
                 const li = e.target.closest('li');
                 if (li) {
                     const idCurso = li.getAttribute('data-id');
                     if (idCurso) this.seleccionarCurso(idCurso);
                 }
-            };
+            });
         }
-
-        // Inicializar estados
-        this.manualMode = false;
-        this.manualPoints = [];
     }
 
     navigateTo(viewId) {
-        console.log("🚀 Navegando a:", viewId);
-        
         document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
         const activeNav = document.querySelector(`.nav-links li[data-target="${viewId}"]`);
         if(activeNav) activeNav.classList.add('active');
@@ -1230,11 +1201,7 @@ class AppController {
         });
 
         const targetSection = document.getElementById(viewId);
-        if (targetSection) {
-            targetSection.classList.add('active');
-        } else {
-            console.error("❌ No se encontró la sección:", viewId);
-        }
+        if (targetSection) targetSection.classList.add('active');
 
         if (viewId === 'dashboard') {
             this.initCharts();
@@ -1403,45 +1370,11 @@ class AppController {
     // --- FASE 3: LÓGICA DE ESCANEO OMR (TIEMPO REAL) ---
     startProcessing() {
         if (!cvReady) {
-            setTimeout(() => this.startProcessing(), 500); 
+            setTimeout(() => this.startProcessing(), 500); // Esperar a que cargue OpenCV
             return;
         }
         this.processing = true;
-        this.processFrame(); 
-    }
-
-    // Inicializa los eventos de click para el modo manual (una sola vez)
-    setupManualEvents() {
-        this.outputCanvas.addEventListener('click', (e) => {
-            if (!this.manualMode) return;
-            const rect = this.outputCanvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (this.outputCanvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (this.outputCanvas.height / rect.height);
-            
-            if (!this.manualPoints) this.manualPoints = [];
-            this.manualPoints.push({ x, y });
-            
-            if (this.manualPoints.length === 4) {
-                this.detectedFiducials = this.sortCorners(this.manualPoints);
-                this.manualPoints = [];
-                this.manualMode = false;
-                Swal.fire('¡Esquinas fijadas!', 'Ahora puedes presionar Calificar.', 'success');
-            } else {
-                Swal.fire({
-                    title: `Punto ${this.manualPoints.length}/4`,
-                    text: 'Toca la siguiente esquina de la hoja.',
-                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1000
-                });
-            }
-        });
-    }
-
-    toggleManualMode() {
-        this.manualMode = !this.manualMode;
-        this.manualPoints = [];
-        if (this.manualMode) {
-            Swal.fire('Modo Manual', 'Toca las 4 esquinas de la hoja en el video, en orden: Superior-Izquierda, Superior-Derecha, Inferior-Derecha, Inferior-Izquierda.', 'info');
-        }
+        this.processFrame();
     }
 
     processFrame() {
@@ -1472,10 +1405,10 @@ class AppController {
             for (let i = 0; i < contours.size(); i++) {
                 let cnt = contours.get(i);
                 let area = cv.contourArea(cnt);
-                if (area > 40 && area < 3000) { 
+                if (area > 50 && area < 2000) { // Tamaño típico de un marcador en cámara
                     let rect = cv.boundingRect(cnt);
                     let ar = rect.width / rect.height;
-                    if (ar > 0.6 && ar < 1.4) {
+                    if (ar > 0.7 && ar < 1.3) {
                         possibleFiducials.push({ 
                             x: rect.x + rect.width/2, 
                             y: rect.y + rect.height/2, 
@@ -1486,14 +1419,18 @@ class AppController {
                 cnt.delete();
             }
 
-            let bestFoursome = this.detectedFiducials; // Mantener si ya se fijó manualmente
-            if (!this.manualMode && possibleFiducials.length >= 4) {
+            // Si tenemos al menos 4, buscamos el grupo que forme el rectángulo más grande
+            let bestFoursome = null;
+            if (possibleFiducials.length >= 4) {
+                // Simplificación: Tomamos los 4 más distantes que formen un rectángulo
+                // En un sistema real usaríamos RANSAC, aquí buscamos esquinas extremas
                 const tl = possibleFiducials.reduce((a, b) => (a.x + a.y < b.x + b.y) ? a : b);
                 const tr = possibleFiducials.reduce((a, b) => (a.x - a.y > b.x - b.y) ? a : b);
                 const br = possibleFiducials.reduce((a, b) => (a.x + a.y > b.x + b.y) ? a : b);
                 const bl = possibleFiducials.reduce((a, b) => (a.x - a.y < b.x - b.y) ? a : b);
                 
-                if (Math.abs(tr.x - tl.x) > 80 && Math.abs(bl.y - tl.y) > 80) {
+                // Verificar que no sean el mismo punto y tengan distancia suficiente
+                if (Math.abs(tr.x - tl.x) > 100 && Math.abs(bl.y - tl.y) > 100) {
                     bestFoursome = [tl, tr, br, bl];
                 }
             }
@@ -1501,33 +1438,32 @@ class AppController {
             const outCtx = this.outputCanvas.getContext('2d');
             outCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
             
-            if (this.manualMode && this.manualPoints) {
-                outCtx.fillStyle = 'yellow';
-                this.manualPoints.forEach(p => outCtx.fillRect(p.x-4, p.y-4, 8, 8));
-            }
-
             if (bestFoursome) {
-                outCtx.lineWidth = 3;
-                outCtx.strokeStyle = '#0ea5e9'; 
+                // Dibujar los marcadores detectados (Feedback para el usuario)
+                outCtx.lineWidth = 2;
+                outCtx.strokeStyle = '#0ea5e9'; // Azul info
                 bestFoursome.forEach(f => {
-                    outCtx.beginPath(); outCtx.arc(f.x, f.y, 10, 0, Math.PI * 2); outCtx.stroke();
+                    outCtx.beginPath();
+                    outCtx.arc(f.x, f.y, 8, 0, Math.PI * 2);
+                    outCtx.stroke();
                 });
 
+                // Dibujar el área de captura
                 outCtx.beginPath();
                 outCtx.moveTo(bestFoursome[0].x, bestFoursome[0].y);
                 outCtx.lineTo(bestFoursome[1].x, bestFoursome[1].y);
                 outCtx.lineTo(bestFoursome[2].x, bestFoursome[2].y);
                 outCtx.lineTo(bestFoursome[3].x, bestFoursome[3].y);
                 outCtx.closePath();
-                outCtx.fillStyle = 'rgba(14, 165, 233, 0.25)';
+                outCtx.fillStyle = 'rgba(14, 165, 233, 0.2)';
                 outCtx.fill();
                 
                 this.btnCapture.classList.add('ready');
-                this.btnCapture.innerHTML = `<i class="fa-solid fa-check"></i> Marcadores Listos - Calificar`;
+                this.btnCapture.innerHTML = `<i class="fa-solid fa-check"></i> Marcadores Detectados - Calificar`;
                 this.detectedFiducials = bestFoursome;
             } else {
                 this.btnCapture.classList.remove('ready');
-                this.btnCapture.innerHTML = this.manualMode ? `Toca las 4 esquinas...` : `<i class="fa-solid fa-crosshairs"></i> Buscando Marcadores...`;
+                this.btnCapture.innerHTML = `<i class="fa-solid fa-crosshairs"></i> Buscando Marcadores...`;
                 this.detectedFiducials = null;
             }
 
