@@ -377,10 +377,10 @@ button {
         <nav class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                <i class="fa-solid fa-bolt-lightning"></i>
-                <span>Seveduca<span>ZIP</span></span>
-                <small style="font-size: 0.5rem; display: block; opacity: 0.5; margin-left: 28px;">v2.0 - OMR Hunter</small>
-            </div>
+                    <i class="fa-solid fa-bolt-lightning"></i>
+                    <span>Seveduca<span>ZIP</span></span>
+                    <small style="font-size: 0.5rem; display: block; opacity: 0.5; margin-left: 28px;">v2.0 - OMR Hunter</small>
+                </div>
             </div>
             <ul class="nav-links">
                 <li class="active" data-target="dashboard">
@@ -1179,17 +1179,14 @@ class AppController {
             });
         });
 
-        // Lógica interactiva para cambiar de curso
-        const courseList = document.querySelector('.course-list');
-        if (courseList) {
-            courseList.addEventListener('click', (e) => {
-                const li = e.target.closest('li');
-                if (li) {
-                    const idCurso = li.getAttribute('data-id');
-                    if (idCurso) this.seleccionarCurso(idCurso);
-                }
-            });
-        }
+        this.initSidebar();
+        this.initScanner();
+        this.setupManualEvents();
+        this.loadDashboardData();
+        
+        // Inicializar estados
+        this.manualMode = false;
+        this.manualPoints = [];
     }
 
     navigateTo(viewId) {
@@ -1371,10 +1368,15 @@ class AppController {
     // --- FASE 3: LÓGICA DE ESCANEO OMR (TIEMPO REAL) ---
     startProcessing() {
         if (!cvReady) {
-            setTimeout(() => this.startProcessing(), 500); // Esperar a que cargue OpenCV
+            setTimeout(() => this.startProcessing(), 500); 
             return;
         }
         this.processing = true;
+        this.processFrame(); 
+    }
+
+    // Inicializa los eventos de click para el modo manual (una sola vez)
+    setupManualEvents() {
         this.outputCanvas.addEventListener('click', (e) => {
             if (!this.manualMode) return;
             const rect = this.outputCanvas.getBoundingClientRect();
