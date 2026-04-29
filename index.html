@@ -641,6 +641,7 @@ function onOpenCvReady() {
 
 class AppController {
     constructor() {
+        window.app = this; // Asegurar referencia global
         this.cursosData = [];
         this.alumnosData = [];
         this.evaluacionesData = [];
@@ -648,28 +649,39 @@ class AppController {
         this.activeAlumnoRut = null;
         this.activeEvaluacionId = null;
         
-        this.cameraStream = null;
-        this.processing = false; 
-        this.videoElement = document.getElementById('camera-preview');
-        this.canvasElement = document.getElementById('camera-canvas');
-        this.outputCanvas = document.getElementById('output-canvas');
-        this.ctx = this.canvasElement.getContext('2d', { willReadFrequently: true });
-        
-        // Botones
-        this.btnCapture = document.getElementById('btn-capture');
-        this.btnSwitch = document.getElementById('btn-switch-camera');
-        
-        this.btnCapture.addEventListener('click', () => this.capturarYCalificar());
-        
-        this.facingMode = 'environment';
-        this.btnSwitch.addEventListener('click', () => {
-            this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
-            this.initCamera();
-        });
+        try {
+            this.cameraStream = null;
+            this.processing = false; 
+            this.videoElement = document.getElementById('camera-preview');
+            this.canvasElement = document.getElementById('camera-canvas');
+            this.outputCanvas = document.getElementById('output-canvas');
+            
+            if (this.canvasElement) {
+                this.ctx = this.canvasElement.getContext('2d', { willReadFrequently: true });
+            }
+            
+            this.btnCapture = document.getElementById('btn-capture');
+            this.btnSwitch = document.getElementById('btn-switch-camera');
+            
+            if (this.btnCapture) {
+                this.btnCapture.addEventListener('click', () => this.capturarYCalificar());
+            }
+            
+            this.facingMode = 'environment';
+            if (this.btnSwitch) {
+                this.btnSwitch.addEventListener('click', () => {
+                    this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+                    this.initCamera();
+                });
+            }
 
-        // Iniciar navegación y datos al final para evitar crashes
-        this.initNavigation();
-        this.loadData();
+            this.initNavigation();
+            this.loadData();
+            
+            console.log("✅ SeveducaZIP Iniciado Correctamente");
+        } catch (e) {
+            console.error("❌ Error en Constructor:", e);
+        }
     }
 
     async loadData() {
@@ -1172,27 +1184,28 @@ class AppController {
     }
 
     initNavigation() {
-        const navItems = document.querySelectorAll('.nav-links li');
-        navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                const targetId = e.currentTarget.getAttribute('data-target');
-                if (targetId) this.navigateTo(targetId);
+        // Delegación de eventos para la barra lateral
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+            sidebar.addEventListener('click', (e) => {
+                const li = e.target.closest('li[data-target]');
+                if (li) {
+                    const targetId = li.getAttribute('data-target');
+                    this.navigateTo(targetId);
+                }
             });
-        });
+        }
 
         this.setupManualEvents();
         
         // Lógica interactiva para cambiar de curso
-        const courseList = document.querySelector('.course-list');
-        if (courseList) {
-            courseList.addEventListener('click', (e) => {
-                const li = e.target.closest('li');
-                if (li) {
-                    const idCurso = li.getAttribute('data-id');
-                    if (idCurso) this.seleccionarCurso(idCurso);
-                }
-            });
-        }
+        document.addEventListener('click', (e) => {
+            const li = e.target.closest('.course-list li');
+            if (li) {
+                const idCurso = li.getAttribute('data-id');
+                if (idCurso) this.seleccionarCurso(idCurso);
+            }
+        });
 
         // Inicializar estados
         this.manualMode = false;
