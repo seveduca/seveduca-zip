@@ -1400,75 +1400,77 @@ class AppController {
             let hierarchy = new cv.Mat();
             cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
             
-            // 5. MODO FIDUCIAL HUNTER: Buscar marcadores negros directamente
-            let possibleFiducials = [];
+            let bestPaper = null;
+            let maxScore = 0;
+            const centerX = this.outputCanvas.width / 2;
+            const centerY = this.outputCanvas.height / 2;
+            
             for (let i = 0; i < contours.size(); i++) {
                 let cnt = contours.get(i);
                 let area = cv.contourArea(cnt);
-                if (area > 50 && area < 2000) { // Tamaño típico de un marcador en cámara
-                    let rect = cv.boundingRect(cnt);
-                    let ar = rect.width / rect.height;
-                    if (ar > 0.7 && ar < 1.3) {
-                        possibleFiducials.push({ 
-                            x: rect.x + rect.width/2, 
-                            y: rect.y + rect.height/2, 
-                            area: area 
-                        });
-                    }
+                if (area > 30000) {
+                    let peri = cv.arcLength(cnt, true);
+                    let approx = new cv.Mat();
+                    cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                    
+                    if (approx.rows === 4) {
+                        let rect = cv.minAreaRect(cnt);
+                        let w = rect.size.width;
+                        let h = rect.size.height;
+                        let ar = Math.max(w, h) / Math.min(w, h);
+                        
+                        // Calcular distancia al centro (queremos lo que el usuario sostiene al centro)
+                        let distToCenter = Math.sqrt(Math.pow(rect.center.x - centerX, 2) + Math.pow(rect.center.y - centerY, 2));
+                        let centerBonus = 1.0 - (distToCenter / (this.outputCanvas.width / 2));
+                        
+                        // Score: Area + Bonus por forma A4 + Bonus por estar al centro
+                        let shapeScore = (ar > 1.2 && ar < 1.6) ? 2.0 : 1.0;
+                        let totalScore = area * shapeScore * (centerBonus > 0 ? centerBonus : 0.1);
+                        
+                        if (totalScore > maxScore) {
+                            maxScore = totalScore;
+                            if (bestPaper) bestPaper.delete();
+                            bestPaper = approx;
+                        } else {
+                            approx.delete();
+                        }
+                    } else { approx.delete(); }
                 }
                 cnt.delete();
             }
-
-            // Si tenemos al menos 4, buscamos el grupo que forme el rectángulo más grande
-            let bestFoursome = null;
-            if (possibleFiducials.length >= 4) {
-                // Simplificación: Tomamos los 4 más distantes que formen un rectángulo
-                // En un sistema real usaríamos RANSAC, aquí buscamos esquinas extremas
-                const tl = possibleFiducials.reduce((a, b) => (a.x + a.y < b.x + b.y) ? a : b);
-                const tr = possibleFiducials.reduce((a, b) => (a.x - a.y > b.x - b.y) ? a : b);
-                const br = possibleFiducials.reduce((a, b) => (a.x + a.y > b.x + b.y) ? a : b);
-                const bl = possibleFiducials.reduce((a, b) => (a.x - a.y < b.x - b.y) ? a : b);
-                
-                // Verificar que no sean el mismo punto y tengan distancia suficiente
-                if (Math.abs(tr.x - tl.x) > 100 && Math.abs(bl.y - tl.y) > 100) {
-                    bestFoursome = [tl, tr, br, bl];
-                }
-            }
-
+            
             const outCtx = this.outputCanvas.getContext('2d');
             outCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
             
-            if (bestFoursome) {
-                // Dibujar los marcadores detectados (Feedback para el usuario)
-                outCtx.lineWidth = 2;
-                outCtx.strokeStyle = '#0ea5e9'; // Azul info
-                bestFoursome.forEach(f => {
-                    outCtx.beginPath();
-                    outCtx.arc(f.x, f.y, 8, 0, Math.PI * 2);
-                    outCtx.stroke();
-                });
-
-                // Dibujar el área de captura
+            if (bestPaper) {
                 outCtx.beginPath();
-                outCtx.moveTo(bestFoursome[0].x, bestFoursome[0].y);
-                outCtx.lineTo(bestFoursome[1].x, bestFoursome[1].y);
-                outCtx.lineTo(bestFoursome[2].x, bestFoursome[2].y);
-                outCtx.lineTo(bestFoursome[3].x, bestFoursome[3].y);
+                for (let i = 0; i < 4; i++) {
+                    let pt = bestPaper.data32S;
+                    if (i === 0) outCtx.moveTo(pt[0], pt[1]);
+                    else outCtx.lineTo(pt[i*2], pt[i*2+1]);
+                }
                 outCtx.closePath();
-                outCtx.fillStyle = 'rgba(14, 165, 233, 0.2)';
+                outCtx.fillStyle = 'rgba(16, 185, 129, 0.3)';
                 outCtx.fill();
+                outCtx.strokeStyle = '#10b981';
+                outCtx.lineWidth = 4;
+                outCtx.stroke();
                 
                 this.btnCapture.classList.add('ready');
-                this.btnCapture.innerHTML = `<i class="fa-solid fa-check"></i> Marcadores Detectados - Calificar`;
-                this.detectedFiducials = bestFoursome;
+                this.btnCapture.innerHTML = `<i class="fa-solid fa-check"></i> Hoja Detectada - Calificar`;
+                this.detectedPaper = bestPaper.clone(); 
+                bestPaper.delete();
             } else {
                 this.btnCapture.classList.remove('ready');
-                this.btnCapture.innerHTML = `<i class="fa-solid fa-crosshairs"></i> Buscando Marcadores...`;
-                this.detectedFiducials = null;
+                this.btnCapture.innerHTML = `<i class="fa-solid fa-crosshairs"></i> Capturar y Calificar`;
+                this.detectedPaper = null;
             }
 
             src.delete(); gray.delete(); blurred.delete(); edges.delete(); contours.delete(); hierarchy.delete();
-        } catch (err) { console.warn("OMR Hunter Error:", err); }
+
+        } catch (err) {
+            console.warn("Error procesando frame:", err);
+        }
 
         // Programar el siguiente frame
         requestAnimationFrame(() => this.processFrame());
@@ -1676,29 +1678,22 @@ class AppController {
 
         let notaGenerada, puntajeGenerado, respuestasAlumno;
 
-        if (this.detectedFiducials) {
-            Swal.fire({ title: 'Leyendo hoja...', html: 'Alineando marcadores...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        if (paperContour) {
+            Swal.fire({ title: 'Leyendo hoja...', html: 'Procesando con OpenCV.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                // 1. Usar los marcadores ya detectados en tiempo real
-                const warped = this.warpPerspectiveFiducial(src, this.detectedFiducials);
-                // 2. Leer burbujas
+                // 1. Encontrar los marcadores negros (Fiduciales)
+                const fiducials = this.findFiducials(src, paperContour);
+                // 2. Warp perfecto usando los marcadores
+                const warped = this.warpPerspectiveFiducial(src, fiducials);
+                // 3. Leer burbujas en el nuevo sistema de coordenadas
                 respuestasAlumno = this.readBubblesFiducial(warped, numPreguntas);
                 warped.delete();
             } catch(e) {
                 console.warn('OMR error:', e);
                 respuestasAlumno = null;
             }
-        } else {
-            src.delete();
-            Swal.fire({
-                title: 'Marcadores no detectados',
-                html: 'Asegúrate de que los 4 cuadrados negros de las esquinas sean visibles y estén iluminados.',
-                icon: 'warning',
-                confirmButtonText: 'Reintentar'
-            }).then(() => this.startProcessing());
-            return;
-        }
+            paperContour.delete();
 
             if (respuestasAlumno && pautaStr.length === numPreguntas) {
                 let correctas = 0;
