@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -333,6 +333,40 @@ button {
 .swal2-html-container { color: var(--text-muted) !important; font-family: var(--font-main) !important; }
 .swal2-confirm { background-color: var(--primary) !important; border-radius: 8px !important; }
 
+/* --- Estilos Módulos Cursos y Evaluaciones --- */
+.course-list { list-style: none; }
+.course-list li {
+    padding: 12px 16px; border-radius: 8px; margin-bottom: 8px;
+    cursor: pointer; transition: var(--transition);
+    color: var(--text-muted); border: 1px solid transparent;
+}
+.course-list li:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.course-list li.active {
+    background: rgba(79, 70, 229, 0.2); border-color: var(--primary);
+    color: #fff; font-weight: 500;
+}
+
+.custom-table { width: 100%; border-collapse: collapse; }
+.custom-table th, .custom-table td {
+    padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color);
+}
+.custom-table th { color: var(--text-muted); font-weight: 500; font-size: 0.9rem; }
+.custom-table td { color: #fff; }
+.custom-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+.icon-btn {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 1rem; transition: var(--transition); padding: 4px;
+}
+.icon-btn:hover { color: var(--primary); transform: scale(1.1); }
+
+.eval-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.eval-card-header h3 { font-size: 1.1rem; margin: 0; }
+.badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.badge.success { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.5); }
+.badge.warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.5); }
+.eval-course, .eval-date { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+.eval-actions { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border-color); }
 </style>
 </head>
 <body>
@@ -473,22 +507,121 @@ button {
 
                 <!-- Otras vistas (Cursos, Evaluaciones) irían aquí -->
                 <section id="cursos" class="view-section">
-                    <div class="section-header">
-                        <h1>Cursos y Alumnos</h1>
-                        <p>Gestiona tu lista de estudiantes.</p>
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h1>Cursos y Alumnos</h1>
+                            <p>Gestiona tu lista de estudiantes y cursos.</p>
+                        </div>
+                        <button class="btn-primary" onclick="Swal.fire('Nuevo Curso', 'Funcionalidad para crear cursos pronto.', 'info')"><i class="fa-solid fa-plus"></i> Nuevo Curso</button>
                     </div>
-                    <div class="glass-panel">
-                        <p>Módulo en construcción...</p>
+                    <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                        <!-- Lista de cursos -->
+                        <div class="glass-panel" style="flex: 1; min-width: 250px; max-width: 300px;">
+                            <h3 style="margin-bottom: 16px; font-size: 1.1rem;">Mis Cursos</h3>
+                            <ul class="course-list">
+                                <li class="active"><i class="fa-solid fa-book" style="margin-right:8px;"></i> 1° Medio A</li>
+                                <li><i class="fa-solid fa-book" style="margin-right:8px;"></i> 1° Medio B</li>
+                                <li><i class="fa-solid fa-book" style="margin-right:8px;"></i> 2° Medio A</li>
+                                <li><i class="fa-solid fa-book" style="margin-right:8px;"></i> 3° Medio C</li>
+                            </ul>
+                        </div>
+                        <!-- Lista de alumnos -->
+                        <div class="glass-panel" style="flex: 2; min-width: 400px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h3 style="font-size: 1.1rem;">Alumnos: 1° Medio A</h3>
+                                <button class="btn-secondary" style="font-size: 0.85rem;" onclick="Swal.fire('Añadir Alumno', 'Formulario en construcción.', 'info')"><i class="fa-solid fa-user-plus"></i> Añadir Alumno</button>
+                            </div>
+                            <div style="overflow-x: auto;">
+                                <table class="custom-table">
+                                    <thead>
+                                        <tr>
+                                            <th>RUT</th>
+                                            <th>Nombre Completo</th>
+                                            <th>Última Nota</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>21.345.678-9</td>
+                                            <td>Juan Pérez Silva</td>
+                                            <td><span style="color: var(--success); font-weight: bold;">6.5</span></td>
+                                            <td><button class="icon-btn"><i class="fa-solid fa-pen"></i></button></td>
+                                        </tr>
+                                        <tr>
+                                            <td>21.876.543-2</td>
+                                            <td>María González Ruiz</td>
+                                            <td><span style="color: var(--warning); font-weight: bold;">4.2</span></td>
+                                            <td><button class="icon-btn"><i class="fa-solid fa-pen"></i></button></td>
+                                        </tr>
+                                        <tr>
+                                            <td>21.112.233-4</td>
+                                            <td>Pedro Soto Tapia</td>
+                                            <td><span style="color: var(--success); font-weight: bold;">5.8</span></td>
+                                            <td><button class="icon-btn"><i class="fa-solid fa-pen"></i></button></td>
+                                        </tr>
+                                        <tr>
+                                            <td>21.554.332-1</td>
+                                            <td>Ana López Castro</td>
+                                            <td><span style="color: var(--danger); font-weight: bold;">3.5</span></td>
+                                            <td><button class="icon-btn"><i class="fa-solid fa-pen"></i></button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
                 <section id="evaluaciones" class="view-section">
-                    <div class="section-header">
-                        <h1>Gestión de Evaluaciones</h1>
-                        <p>Crea pautas y claves de respuestas.</p>
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h1>Gestión de Evaluaciones</h1>
+                            <p>Crea pautas, define alternativas correctas y revisa estadísticas.</p>
+                        </div>
+                        <button class="btn-primary" onclick="Swal.fire('Crear Evaluación', 'Aquí podrás crear una nueva clave de respuestas de la A a la E.', 'info')"><i class="fa-solid fa-plus"></i> Crear Evaluación</button>
                     </div>
-                    <div class="glass-panel">
-                        <p>Módulo en construcción...</p>
+                    <div class="eval-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
+                        
+                        <div class="glass-panel eval-card">
+                            <div class="eval-card-header">
+                                <h3>Prueba de Diagnóstico</h3>
+                                <span class="badge success">Activa</span>
+                            </div>
+                            <p class="eval-course"><i class="fa-solid fa-users"></i> 1° Medio A</p>
+                            <p class="eval-date"><i class="fa-regular fa-calendar"></i> 15 de Mayo, 2026</p>
+                            <p class="eval-date"><i class="fa-solid fa-list-ol"></i> 30 Preguntas</p>
+                            <div class="eval-actions">
+                                <button class="btn-secondary" style="width:100%; justify-content:center;"><i class="fa-solid fa-list-check"></i> Ver Pauta de Respuestas</button>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-panel eval-card">
+                            <div class="eval-card-header">
+                                <h3>Control de Ecuaciones</h3>
+                                <span class="badge warning">Borrador</span>
+                            </div>
+                            <p class="eval-course"><i class="fa-solid fa-users"></i> 1° Medio B</p>
+                            <p class="eval-date"><i class="fa-regular fa-calendar"></i> 20 de Mayo, 2026</p>
+                            <p class="eval-date"><i class="fa-solid fa-list-ol"></i> 40 Preguntas</p>
+                            <div class="eval-actions">
+                                <button class="btn-secondary" style="width:100%; justify-content:center; color: var(--warning); border-color: rgba(245, 158, 11, 0.3);"><i class="fa-solid fa-pen-to-square"></i> Completar Pauta</button>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-panel eval-card">
+                            <div class="eval-card-header">
+                                <h3>Examen Final Geometría</h3>
+                                <span class="badge" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">Cerrada</span>
+                            </div>
+                            <p class="eval-course"><i class="fa-solid fa-users"></i> 2° Medio A</p>
+                            <p class="eval-date"><i class="fa-regular fa-calendar"></i> 05 de Abril, 2026</p>
+                            <p class="eval-date"><i class="fa-solid fa-list-ol"></i> 35 Preguntas</p>
+                            <div class="eval-actions">
+                                <button class="btn-secondary" style="width:100%; justify-content:center;"><i class="fa-solid fa-chart-simple"></i> Ver Estadísticas</button>
+                            </div>
+                        </div>
+
                     </div>
                 </section>
 
