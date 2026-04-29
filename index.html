@@ -1508,26 +1508,32 @@ class AppController {
     // Lee burbujas desde imagen warpada 800x1100.
     readBubbles(warped, numPreguntas) {
         const W = 800, H = 1100;
+        const pxPerCm = 800 / 21; 
+
         let gray = new cv.Mat();
         cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY);
         
         let thresh = new cv.Mat();
-        cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 19, 10);
+        cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 21, 12);
 
-        const pxPerCm = 800 / 21; 
-        const colStarts = [1.1, 5.81, 10.52, 15.23].map(c => c * pxPerCm);
-        const qNumW = 0.55 * pxPerCm; 
-        const cellW = 0.77 * pxPerCm; 
+        // --- CALIBRACION DE COORDENADAS (AJUSTADO A REALIDAD IMPRESA) ---
+        // Margen Izq (1cm) + Padding (0.2cm) + Gap? = ~1.3cm
+        const colStarts = [1.3, 6.0, 10.7, 15.4].map(c => c * pxPerCm);
+        
+        const qNumW = 0.6 * pxPerCm;  
+        const cellW = 0.78 * pxPerCm; 
         const rowH  = 0.52 * pxPerCm; 
-        const answersTopY = 5.0 * pxPerCm; 
-        const colHeaderH  = 0.4 * pxPerCm;
+        
+        // Y de inicio: Margen (1cm) + Header (2cm) + Student (2.8cm) + Instr (1.5cm) = ~7.3cm
+        const answersTopY = 7.3 * pxPerCm; 
+        const colHeaderH  = 0.5 * pxPerCm;
 
         const colSize = Math.ceil(numPreguntas / 4);
-        const sampleR = Math.round(0.16 * pxPerCm); 
-        const FILL_THRESHOLD = 30; 
+        const sampleR = Math.round(0.22 * pxPerCm); // Aumentado para mayor tolerancia
+        const FILL_THRESHOLD = 25; // Mas sensible
 
-        // Debug: Dibujamos sobre la imagen warpada
-        let debugMat = warped.clone();
+        if (window.lastWarpedMat) window.lastWarpedMat.delete();
+        window.lastWarpedMat = warped.clone();
 
         const answers = [];
         for (let q = 0; q < numPreguntas; q++) {
@@ -1548,19 +1554,12 @@ class AppController {
                 roi.delete();
                 
                 if (fill > maxF) { maxF = fill; sel = ['A','B','C','D','E'][b]; }
-                cv.rectangle(debugMat, new cv.Point(x0, y0), new cv.Point(x1, y1), 
+                cv.rectangle(window.lastWarpedMat, new cv.Point(x0, y0), new cv.Point(x1, y1), 
                              fill > FILL_THRESHOLD ? new cv.Scalar(0, 255, 0, 255) : new cv.Scalar(255, 0, 0, 255), 1);
             }
             answers.push(maxF > FILL_THRESHOLD ? sel : null);
         }
-
-        // Convertir debugMat a URL de imagen para el SwAl
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = W; tempCanvas.height = H;
-        cv.imshow(tempCanvas, debugMat);
-        this.lastDebugImageURL = tempCanvas.toDataURL();
-
-        gray.delete(); thresh.delete(); debugMat.delete();
+        gray.delete(); thresh.delete();
         return answers;
     }
 
