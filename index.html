@@ -1184,28 +1184,34 @@ class AppController {
     }
 
     initNavigation() {
-        // Delegación de eventos para la barra lateral
-        const sidebar = document.querySelector('.sidebar');
-        if (sidebar) {
-            sidebar.addEventListener('click', (e) => {
-                const li = e.target.closest('li[data-target]');
-                if (li) {
-                    const targetId = li.getAttribute('data-target');
-                    this.navigateTo(targetId);
-                }
-            });
-        }
-
-        this.setupManualEvents();
+        console.log("🛠️ Iniciando Navegación v2.6...");
         
-        // Lógica interactiva para cambiar de curso
-        document.addEventListener('click', (e) => {
-            const li = e.target.closest('.course-list li');
-            if (li) {
-                const idCurso = li.getAttribute('data-id');
-                if (idCurso) this.seleccionarCurso(idCurso);
-            }
+        // 1. Listeners de la barra lateral (Prioridad Máxima)
+        const navItems = document.querySelectorAll('.nav-links li');
+        navItems.forEach(item => {
+            item.style.cursor = 'pointer'; // Asegurar feedback visual
+            item.onclick = () => {
+                const targetId = item.getAttribute('data-target');
+                console.log("🖱️ Click en:", targetId);
+                if (targetId) this.navigateTo(targetId);
+            };
         });
+
+        try {
+            this.setupManualEvents();
+        } catch(e) { console.error("Error en setupManualEvents:", e); }
+        
+        // 2. Lógica para cambiar de curso
+        const courseList = document.querySelector('.course-list');
+        if (courseList) {
+            courseList.onclick = (e) => {
+                const li = e.target.closest('li');
+                if (li) {
+                    const idCurso = li.getAttribute('data-id');
+                    if (idCurso) this.seleccionarCurso(idCurso);
+                }
+            };
+        }
 
         // Inicializar estados
         this.manualMode = false;
@@ -1213,6 +1219,8 @@ class AppController {
     }
 
     navigateTo(viewId) {
+        console.log("🚀 Navegando a:", viewId);
+        
         document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
         const activeNav = document.querySelector(`.nav-links li[data-target="${viewId}"]`);
         if(activeNav) activeNav.classList.add('active');
@@ -1222,7 +1230,11 @@ class AppController {
         });
 
         const targetSection = document.getElementById(viewId);
-        if (targetSection) targetSection.classList.add('active');
+        if (targetSection) {
+            targetSection.classList.add('active');
+        } else {
+            console.error("❌ No se encontró la sección:", viewId);
+        }
 
         if (viewId === 'dashboard') {
             this.initCharts();
