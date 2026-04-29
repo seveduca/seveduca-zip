@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeveducaZIP - Calificación Inteligente</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome para íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Estilos Personalizados -->
+    <style>
+/* Variables de Diseño (Design Tokens) */
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --secondary: #0ea5e9;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    
+    --bg-dark: #0f172a;
+    --bg-panel: rgba(30, 41, 59, 0.7);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    
+    --border-color: rgba(255, 255, 255, 0.1);
+    --glass-blur: blur(12px);
+    
+    --font-main: 'Inter', sans-serif;
+    --transition: all 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow: hidden; /* Previene scroll en la ventana principal, el main maneja el scroll */
+    /* Fondo con gradiente oscuro sutil */
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
+}
+
+/* Tipografía */
+h1, h2, h3 { font-weight: 600; color: #fff; }
+p { color: var(--text-muted); line-height: 1.5; }
+
+/* Contenedor Principal */
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Utilidades Glassmorphism */
+.glass-panel {
+    background: var(--bg-panel);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* --- Barra Lateral (Sidebar) --- */
+.sidebar {
+    width: 260px;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: var(--glass-blur);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 0;
+    z-index: 10;
+}
+
+.sidebar-header {
+    padding: 0 24px 32px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.2rem;
+    color: var(--primary);
+}
+.logo h2 { color: #fff; margin: 0; }
+.logo span { color: var(--secondary); font-weight: 300; }
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 16px;
+}
+
+.nav-links li {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: var(--transition);
+    font-weight: 500;
+}
+
+.nav-links li:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.nav-links li.active {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}
+
+.nav-highlight {
+    margin-top: 16px;
+    border: 1px dashed var(--primary);
+}
+
+/* --- Contenido Principal --- */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* Cabecera Superior */
+.top-header {
+    height: 72px;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: var(--glass-blur);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 16px;
+    width: 300px;
+}
+
+.search-bar i { color: var(--text-muted); margin-right: 12px; }
+.search-bar input {
+    background: none; border: none; outline: none;
+    color: #fff; width: 100%; font-family: var(--font-main);
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex; justify-content: center; align-items: center;
+    font-weight: bold; font-size: 1.2rem;
+}
+
+/* Áreas de Vistas */
+.content-area {
+    padding: 32px;
+}
+
+.view-section {
+    display: none;
+    animation: fadeIn 0.4s ease forwards;
+}
+
+.view-section.active { display: block; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.section-header { margin-bottom: 32px; }
+.section-header h1 { font-size: 2rem; margin-bottom: 8px; }
+
+/* Dashboard Grids */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.stat-icon {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 1.5rem;
+}
+
+.stat-info h3 { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 4px; }
+.stat-info p { font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0; }
+
+.empty-state {
+    text-align: center; padding: 48px 0;
+}
+.empty-state i { font-size: 3rem; color: var(--text-muted); margin-bottom: 16px; opacity: 0.5; }
+.empty-state p { margin-bottom: 24px; }
+
+/* --- Escáner OMR UI --- */
+.scanner-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.camera-wrapper {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 24px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+#camera-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.scanner-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; justify-content: center; align-items: center;
+    background: rgba(0,0,0,0.7);
+    color: #fff; font-size: 1.2rem;
+}
+
+.scanner-guides {
+    position: absolute;
+    top: 10%; left: 10%; right: 10%; bottom: 10%;
+    pointer-events: none;
+}
+
+.corner {
+    position: absolute;
+    width: 40px; height: 40px;
+    border: 4px solid var(--success);
+    transition: all 0.3s ease;
+}
+
+.top-left { top: 0; left: 0; border-right: none; border-bottom: none; }
+.top-right { top: 0; right: 0; border-left: none; border-bottom: none; }
+.bottom-left { bottom: 0; left: 0; border-right: none; border-top: none; }
+.bottom-right { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+.scanner-controls {
+    display: flex; gap: 16px; width: 100%; justify-content: center;
+}
+
+/* Botones */
+button {
+    font-family: var(--font-main);
+    border: none; outline: none; cursor: pointer;
+    padding: 10px 20px; border-radius: 8px;
+    font-weight: 600; font-size: 0.95rem;
+    transition: var(--transition);
+    display: flex; align-items: center; gap: 8px;
+}
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); }
+
+.btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid var(--border-color); }
+.btn-secondary:hover { background: rgba(255,255,255,0.2); }
+
+.btn-primary.large { padding: 14px 28px; font-size: 1.1rem; border-radius: 12px; }
+
+.hidden { display: none !important; }
+
+/* Canvas superpuesto para OpenCV */
+.output-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none; /* Permite clics a través del canvas */
+}
+
+/* SweetAlert2 personalizaciones para que coincida con el tema oscuro */
+.swal2-popup {
+    background: var(--bg-dark) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 16px !important;
+}
+.swal2-title { color: #fff !important; font-family: var(--font-main) !important; }
+.swal2-html-container { color: var(--text-muted) !important; font-family: var(--font-main) !important; }
+.swal2-confirm { background-color: var(--primary) !important; border-radius: 8px !important; }
+.swal2-input, .swal2-textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid var(--border-color) !important; color: #fff !important; }
+
+/* --- Estilos Módulos Cursos y Evaluaciones --- */
+.course-list { list-style: none; }
+.course-list li {
+    padding: 12px 16px; border-radius: 8px; margin-bottom: 8px;
+    cursor: pointer; transition: var(--transition);
+    color: var(--text-muted); border: 1px solid transparent;
+}
+.course-list li:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.course-list li.active {
+    background: rgba(79, 70, 229, 0.2); border-color: var(--primary);
+    color: #fff; font-weight: 500;
+}
+
+.custom-table { width: 100%; border-collapse: collapse; }
+.custom-table th, .custom-table td {
+    padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color);
+}
+.custom-table th { color: var(--text-muted); font-weight: 500; font-size: 0.9rem; }
+.custom-table td { color: #fff; }
+.custom-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+.icon-btn {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 1rem; transition: var(--transition); padding: 4px;
+}
+.icon-btn:hover { color: var(--primary); transform: scale(1.1); }
+.icon-btn.danger:hover { color: var(--danger); }
+
+.eval-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.eval-card-header h3 { font-size: 1.1rem; margin: 0; }
+.badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.badge.success { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.5); }
+.badge.warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.5); }
+.eval-course, .eval-date { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+.eval-actions { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border-color); }
+</style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Barra lateral de navegación -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fa-solid fa-shield-halved" style="color: #f59e0b;"></i>
+                    <span>Seveduca<span>ZIP</span></span>
+                    <small style="font-size: 0.5rem; display: block; opacity: 0.5; margin-left: 28px;">v2.5 - Estabilidad Total</small>
+                </div>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-target="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Panel Principal</span>
+                </li>
+                <li data-target="cursos">
+                    <i class="fa-solid fa-users-rectangle"></i>
+                    <span>Cursos y Alumnos</span>
+                </li>
+                <li data-target="evaluaciones">
+                    <i class="fa-solid fa-file-signature"></i>
+                    <span>Evaluaciones</span>
+                </li>
+                <li data-target="escaner" class="nav-highlight">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Escanear Hojas</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Área de contenido principal -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="search-bar">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" placeholder="Buscar cursos o evaluaciones...">
+                </div>
+                <div class="user-profile">
+                    <div class="avatar">P</div>
+                    <span>Profesor</span>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <!-- Vista: Panel Principal -->
+                <section id="dashboard" class="view-section active">
+                    <div class="section-header">
+                        <h1>Hola de nuevo 👋</h1>
+                        <p>Aquí tienes el resumen de tus evaluaciones recientes.</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon" style="background: rgba(99, 102, 241, 0.2); color: #6366f1;">
+                                <i class="fa-solid fa-file-circle-check"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Total Evaluaciones</h3>
+                                <p>12</p>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Total Alumnos</h3>
+                                <p>345</p>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+                                <i class="fa-solid fa-bolt"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Promedio General</h3>
+                                <p>5.8</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-widgets" style="display: flex; gap: 24px; flex-wrap: wrap;">
+                        <div class="widget glass-panel" style="flex: 2; min-width: 400px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h2>Rendimiento del Curso</h2>
+                                <button class="btn-secondary" onclick="app.generateCoursePDF()"><i class="fa-solid fa-file-pdf"></i> Reporte PDF</button>
+                            </div>
+                            <div class="chart-container" style="position: relative; height:300px; width:100%">
+                                <canvas id="course-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="widget glass-panel" style="flex: 1; min-width: 250px;">
+                            <h2>Últimas Pruebas Escaneadas</h2>
+                            <div class="empty-state">
+                                <i class="fa-solid fa-inbox"></i>
+                                <p>Aún no has escaneado pruebas.</p>
+                                <button class="btn-primary" onclick="app.navigateTo('escaner')">Escanear Ahora</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Vista: Escáner -->
+                <section id="escaner" class="view-section">
+                    <div class="section-header">
+                        <h1>Escáner de Hojas (OMR)</h1>
+                        <p>Enfoca la hoja de respuestas del alumno en el recuadro para calificar.</p>
+                    </div>
+                    <div class="scanner-container glass-panel">
+                        <div class="camera-wrapper">
+                            <video id="camera-preview" autoplay playsinline></video>
+                            <canvas id="camera-canvas" class="hidden"></canvas>
+                            <!-- Canvas para dibujar la detección de la hoja encima del video -->
+                            <canvas id="output-canvas" class="output-canvas"></canvas>
+                            <!-- Guías visuales para alinear la hoja -->
+                            <div class="scanner-guides">
+                                <div class="corner top-left"></div>
+                                <div class="corner top-right"></div>
+                                <div class="corner bottom-left"></div>
+                                <div class="corner bottom-right"></div>
+                            </div>
+                            <div class="scanner-overlay">
+                                <p><i class="fa-solid fa-camera"></i> Iniciando cámara...</p>
+                            </div>
+                        </div>
+                        <div class="scanner-controls">
+                            <button class="btn-secondary" id="btn-switch-camera">
+                                <i class="fa-solid fa-camera-rotate"></i> Cambiar Cámara
+                            </button>
+                            <button class="btn-primary large" id="btn-capture">
+                                <i class="fa-solid fa-crosshairs"></i> Capturar y Calificar
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Otras vistas (Cursos, Evaluaciones) irían aquí -->
+                <section id="cursos" class="view-section">
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h1>Cursos y Alumnos</h1>
+                            <p>Gestiona tu lista de estudiantes y cursos.</p>
+                        </div>
+                        <button class="btn-primary" onclick="app.addCourse()"><i class="fa-solid fa-plus"></i> Nuevo Curso</button>
+                    </div>
+                    <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                        <!-- Lista de cursos -->
+                        <div class="glass-panel" style="flex: 1; min-width: 250px; max-width: 300px;">
+                            <h3 style="margin-bottom: 16px; font-size: 1.1rem;">Mis Cursos</h3>
+                            <ul class="course-list">
+                                <li class="active"><i class="fa-solid fa-book" style="margin-right:8px;"></i> 1° Medio A</li>
+                                <li><i class="fa-solid fa-book" style="margin-right:8px;"></i> 1° Medio B</li>
+                                <li><i class="fa-solid fa-book" style="margin-right:8px;"></i> 2° Medio A</li>
+                                <li><i class="fa-solid fa-book" style="margin-right:8px;"></i> 3° Medio C</li>
+                            </ul>
+                        </div>
+                        <!-- Lista de alumnos -->
+                        <div class="glass-panel" style="flex: 2; min-width: 400px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h3 id="table-course-title" style="font-size: 1.1rem;">Alumnos: 1° Medio A</h3>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn-secondary" style="font-size: 0.85rem;" onclick="app.importStudents()"><i class="fa-solid fa-file-excel"></i> Importar Nómina</button>
+                                    <button class="btn-secondary" style="font-size: 0.85rem;" onclick="app.addStudent()"><i class="fa-solid fa-user-plus"></i> Añadir Alumno</button>
+                                </div>
+                            </div>
+                            <div style="overflow-x: auto;">
+                                <table class="custom-table">
+                                    <thead>
+                                        <tr>
+                                            <th>RUT</th>
+                                            <th>Nombre Completo</th>
+                                            <th>Última Nota</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>21.345.678-9</td>
+                                            <td>Juan Pérez Silva</td>
+                                            <td><span style="color: var(--success); font-weight: bold;">6.5</span></td>
+                                            <td>
+                                                <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
+                                                <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>21.876.543-2</td>
+                                            <td>María González Ruiz</td>
+                                            <td><span style="color: var(--warning); font-weight: bold;">4.2</span></td>
+                                            <td>
+                                                <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
+                                                <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>21.112.233-4</td>
+                                            <td>Pedro Soto Tapia</td>
+                                            <td><span style="color: var(--success); font-weight: bold;">5.8</span></td>
+                                            <td>
+                                                <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
+                                                <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>21.554.332-1</td>
+                                            <td>Ana López Castro</td>
+                                            <td><span style="color: var(--danger); font-weight: bold;">3.5</span></td>
+                                            <td>
+                                                <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
+                                                <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="evaluaciones" class="view-section">
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h1>Gestión de Evaluaciones</h1>
+                            <p>Crea pautas de respuestas y revisa estadísticas por curso.</p>
+                        </div>
+                        <button class="btn-primary" onclick="app.createEvaluacion()"><i class="fa-solid fa-plus"></i> Crear Evaluación</button>
+                    </div>
+                    <div id="eval-grid" class="eval-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
+                        <div style="text-align:center; color: var(--text-muted); grid-column: 1/-1; padding: 40px;">
+                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                            <p style="margin-top: 12px;">Cargando evaluaciones...</p>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Chart.js para visualización de datos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf para generar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- OpenCV.js para procesamiento de imágenes -->
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <!-- SweetAlert2 para alertas atractivas -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Lógica de la aplicación -->
+    <script>
+/**
+ * Lógica Principal Frontend SeveducaZIP (Con Motor OMR OpenCV.js)
+ */
+
+// ══════════════════════════════════════════════════
+// 🔗 URL del Backend (Google Apps Script)
+// ══════════════════════════════════════════════════
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzrCDfhKhHzh4vA80O2M8SX0lJ2cqmryCjQ-4O5dRIAZNc2MABNaUiQ7HlYi7dm8MIG_g/exec";
+
+let cvReady = false;
+
+// Callback llamado automáticamente cuando OpenCV termina de cargar desde el CDN
+function onOpenCvReady() {
+    cvReady = true;
+    console.log("OpenCV.js cargado correctamente.");
+}
+
+class AppController {
+    constructor() {
+        window.app = this; // Asegurar referencia global
+        this.cursosData = [];
+        this.alumnosData = [];
+        this.evaluacionesData = [];
+        this.activeCursoId = null;
+        this.activeAlumnoRut = null;
+        this.activeEvaluacionId = null;
+        
+        try {
+            this.cameraStream = null;
+            this.processing = false; 
+            this.videoElement = document.getElementById('camera-preview');
+            this.canvasElement = document.getElementById('camera-canvas');
+            this.outputCanvas = document.getElementById('output-canvas');
+            
+            if (this.canvasElement) {
+                this.ctx = this.canvasElement.getContext('2d', { willReadFrequently: true });
+            }
+            
+            this.btnCapture = document.getElementById('btn-capture');
+            this.btnSwitch = document.getElementById('btn-switch-camera');
+            
+            if (this.btnCapture) {
+                this.btnCapture.addEventListener('click', () => this.capturarYCalificar());
+            }
+            
+            this.facingMode = 'environment';
+            if (this.btnSwitch) {
+                this.btnSwitch.addEventListener('click', () => {
+                    this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+                    this.initCamera();
+                });
+            }
+
+            this.initNavigation();
+            this.loadData();
+            
+            console.log("✅ SeveducaZIP Iniciado Correctamente");
+        } catch (e) {
+            console.error("❌ Error en Constructor:", e);
+        }
+    }
+
+    async loadData() {
+        // Mostrar estado de carga en la UI (opcional)
+        const ul = document.querySelector('.course-list');
+        if (ul) ul.innerHTML = '<li><i class="fa-solid fa-spinner fa-spin"></i> Cargando cursos...</li>';
+        
+        const tbody = document.querySelector('.custom-table tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Conectando con Google Sheets...</td></tr>';
+
+        // Definir callback global para JSONP
+        window.jsonpCallback = (data) => {
+            if (data.success) {
+                this.cursosData = data.cursos || [];
+                this.alumnosData = data.alumnos || [];
+                this.evaluacionesData = data.evaluaciones || [];
+                
+                this.renderCursos(this.cursosData);
+                this.renderEvaluaciones(this.evaluacionesData);
+                
+                if (this.cursosData.length > 0) {
+                    this.seleccionarCurso(this.cursosData[0][0]);
+                } else {
+                    this.renderAlumnos([]);
+                }
+            }
+            // Limpiar script del DOM
+            const script = document.getElementById('jsonp-script');
+            if (script) script.remove();
+        };
+
+        // Crear script para JSONP (Evita cualquier bloqueo CORS)
+        const script = document.createElement('script');
+        script.id = 'jsonp-script';
+        script.src = `${GAS_URL}?action=get_data&callback=jsonpCallback`;
+        script.onerror = () => {
+            console.error("Error cargando script JSONP");
+            if (ul) ul.innerHTML = '<li style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Error de conexión con Sheets</li>';
+            if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--danger);">CORS/Network error. Asegúrate de haber copiado el nuevo código Backend y actualizado la versión.</td></tr>`;
+        };
+        document.body.appendChild(script);
+    }
+
+    renderCursos(cursos) {
+        const ul = document.querySelector('.course-list');
+        if (!ul) return;
+        ul.innerHTML = ''; // Limpiar lista
+        
+        if (!cursos || cursos.length === 0) {
+            ul.innerHTML = '<li style="color:var(--text-muted);">Sin cursos aún</li>';
+            return;
+        }
+
+        cursos.forEach((curso) => {
+            const li = document.createElement('li');
+            li.setAttribute('data-id', curso[0]);
+            const nombreCurso = curso[1] || "Curso sin nombre";
+            li.innerHTML = `<i class="fa-solid fa-book" style="margin-right:8px;"></i> ${nombreCurso}`;
+            ul.appendChild(li);
+        });
+    }
+
+    seleccionarCurso(idCurso) {
+        this.activeCursoId = idCurso;
+        const curso = this.cursosData.find(c => c[0] === idCurso);
+        if (!curso) return;
+        
+        // Actualizar título
+        const titleEl = document.getElementById('table-course-title');
+        const nombreCurso = curso[1] || "Curso sin nombre";
+        if (titleEl) titleEl.innerText = `Alumnos: ${nombreCurso}`;
+        
+        // Actualizar clase activa en UI
+        document.querySelectorAll('.course-list li').forEach(el => {
+            if (el.getAttribute('data-id') === idCurso) el.classList.add('active');
+            else el.classList.remove('active');
+        });
+        
+        // Filtrar y renderizar alumnos
+        const alumnosFiltrados = this.alumnosData.filter(a => String(a[1]) === String(idCurso));
+        this.renderAlumnos(alumnosFiltrados);
+    }
+
+    renderAlumnos(alumnos) {
+        const tbody = document.querySelector('.custom-table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        if (!alumnos || alumnos.length === 0) {
+             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No hay alumnos registrados aún.</td></tr>`;
+             return;
+        }
+
+        alumnos.forEach(alumno => {
+            const tr = document.createElement('tr');
+            // Leemos directamente desde los índices del array [ID, ID_Curso, RUT, Nombre, Nota]
+            const rut = alumno[2] || "Sin RUT";
+            const nombre = alumno[3] || "Sin Nombre";
+            const nota = alumno[4] || "N/A";
+            
+            let colorNota = "var(--text-muted)";
+            if (parseFloat(nota) >= 5.0) colorNota = "var(--success)";
+            else if (parseFloat(nota) >= 4.0) colorNota = "var(--warning)";
+            else if (parseFloat(nota) < 4.0 && nota !== "N/A") colorNota = "var(--danger)";
+
+            tr.innerHTML = `
+                <td>${rut}</td>
+                <td>${nombre}</td>
+                <td><span style="color: ${colorNota}; font-weight: bold;">${nota}</span></td>
+                <td>
+                    <button class="icon-btn" onclick="app.editStudent('${rut}', '${nombre}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="icon-btn danger" onclick="app.confirmDelete('alumno', '${rut}')"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    renderEvaluaciones(evaluaciones) {
+        const grid = document.getElementById('eval-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        
+        if (!evaluaciones || evaluaciones.length === 0) {
+            grid.innerHTML = `<div style="text-align:center; color: var(--text-muted); grid-column: 1/-1; padding: 40px;">
+                <i class="fa-solid fa-clipboard-list" style="font-size: 2rem;"></i>
+                <p style="margin-top: 12px;">No hay evaluaciones creadas aún.</p>
+            </div>`;
+            return;
+        }
+
+        evaluaciones.forEach(ev => {
+            // [ID, Nombre, ID_Curso, Fecha, NumPreguntas, Pauta, Estado]
+            const idEval = ev[0];
+            const nombre = ev[1] || "Sin nombre";
+            const idCurso = ev[2];
+            const fecha = ev[3] ? new Date(ev[3]).toLocaleDateString('es-CL') : "Sin fecha";
+            const numPreguntas = ev[4] || 0;
+            const estado = ev[6] || "Activa";
+
+            const curso = this.cursosData.find(c => String(c[0]) === String(idCurso));
+            const nombreCurso = curso ? (curso[1] || "Curso") : "Sin curso";
+
+            const badgeColor = estado === 'Activa' ? 'success' : (estado === 'Borrador' ? 'warning' : '');
+            const badgeStyle = badgeColor ? `class="badge ${badgeColor}"` : `class="badge" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);"` ;
+
+            const card = document.createElement('div');
+            card.className = 'glass-panel eval-card';
+            card.innerHTML = `
+                <div class="eval-card-header">
+                    <h3>${nombre}</h3>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span ${badgeStyle}>${estado}</span>
+                        <button class="icon-btn danger" onclick="app.deleteEval('${idEval}', '${nombre}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                <p class="eval-course"><i class="fa-solid fa-users"></i> ${nombreCurso}</p>
+                <p class="eval-date"><i class="fa-regular fa-calendar"></i> ${fecha}</p>
+                <p class="eval-date"><i class="fa-solid fa-list-ol"></i> ${numPreguntas} Preguntas</p>
+                <div class="eval-actions">
+                    <button class="btn-secondary" style="width:100%; justify-content:center;" onclick="app.iniciarEscaneo('${idEval}')"><i class="fa-solid fa-camera"></i> Escanear con esta pauta</button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    confirmDelete(type, idString) {
+        const title = type === 'alumno' ? '¿Eliminar alumno?' : '¿Eliminar evaluación?';
+        const text = type === 'alumno' ? 'Los registros históricos asociados a este alumno se mantendrán, pero no aparecerá más en las listas de este curso.' : 'Se borrará la pauta y no se podrán escanear más hojas de respuestas para esta evaluación.';
+        
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#334155',
+            confirmButtonText: '<i class="fa-solid fa-trash"></i> Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                
+                const action = type === 'alumno' ? 'delete_alumno' : 'delete_evaluacion';
+                const payload = type === 'alumno' ? { idCurso: this.activeCursoId, rut: idString } : { nombre: idString };
+                
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ action: action, payload: payload })
+                }).then(() => {
+                    // Actualizamos memoria y UI
+                    if (type === 'alumno') {
+                        this.alumnosData = this.alumnosData.filter(a => a[2] !== idString);
+                        this.seleccionarCurso(this.activeCursoId);
+                    }
+                    Swal.fire('Eliminado', 'El registro ha sido eliminado correctamente de Google Sheets.', 'success');
+                });
+            }
+        });
+    }
+
+    async addCourse() {
+        const { value: courseName } = await Swal.fire({
+            title: 'Nuevo Curso',
+            input: 'text',
+            inputLabel: 'Nombre del curso',
+            inputPlaceholder: 'Ej: 4° Medio B',
+            showCancelButton: true,
+            confirmButtonText: 'Crear Curso',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) return 'Debes ingresar un nombre para el curso';
+            }
+        });
+
+        if (courseName) {
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+            
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'add_curso', payload: { nombre: courseName } })
+            }).then(() => {
+                // Actualizar memoria (Asignamos un ID falso por ahora, se sincronizará al recargar)
+                const newId = "CUR-" + new Date().getTime();
+                this.cursosData.push([newId, courseName, new Date()]);
+                this.renderCursos(this.cursosData);
+                this.seleccionarCurso(newId);
+                
+                Swal.fire('¡Creado!', `El curso ${courseName} ha sido guardado en Google Sheets.`, 'success');
+            });
+        }
+    }
+
+    async addStudent() {
+        const { value: formValues } = await Swal.fire({
+            title: 'Añadir Alumno',
+            html:
+                '<input id="swal-input-rut" class="swal2-input" placeholder="RUT (Ej: 21.123.456-7)">' +
+                '<input id="swal-input-nombre" class="swal2-input" placeholder="Nombre Completo">',
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Guardar Alumno',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const rut = document.getElementById('swal-input-rut').value;
+                const nombre = document.getElementById('swal-input-nombre').value;
+                if (!rut || !nombre) {
+                    Swal.showValidationMessage('Por favor completa ambos campos');
+                    return false;
+                }
+                return { rut, nombre };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+            
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'add_alumno', payload: { idCurso: this.activeCursoId, rut: formValues.rut, nombre: formValues.nombre } })
+            }).then(() => {
+                // Actualizar memoria
+                this.alumnosData.push(['ALU-TEMP', this.activeCursoId, formValues.rut, formValues.nombre, 'N/A']);
+                this.seleccionarCurso(this.activeCursoId); // Re-render
+
+                Swal.fire('¡Añadido!', `El alumno ${formValues.nombre} ha sido guardado.`, 'success');
+            });
+        }
+    }
+
+    async createEvaluacion() {
+        if (this.cursosData.length === 0) {
+            return Swal.fire('Atención', 'Primero debes crear al menos un curso.', 'warning');
+        }
+
+        const opcionesCursos = this.cursosData.map(c => `<option value="${c[0]}">${c[1] || 'Curso'}</option>`).join('');
+        
+        const { value: formValues } = await Swal.fire({
+            title: 'Crear Evaluación',
+            html: `
+                <input id="swal-eval-nombre" class="swal2-input" placeholder="Nombre de la evaluación">
+                <select id="swal-eval-curso" class="swal2-input" style="cursor:pointer;">
+                    ${opcionesCursos}
+                </select>
+                <input id="swal-eval-fecha" class="swal2-input" type="date" value="${new Date().toISOString().split('T')[0]}">
+                <input id="swal-eval-preguntas" class="swal2-input" type="number" placeholder="N° de preguntas" min="1" max="100">
+                <textarea id="swal-eval-pauta" class="swal2-textarea" placeholder="Pauta de respuestas (ej: ABCDEABCDE...). Una letra por pregunta, sin espacios." style="height:80px;"></textarea>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-save"></i> Guardar Evaluación',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const nombre = document.getElementById('swal-eval-nombre').value.trim();
+                const idCurso = document.getElementById('swal-eval-curso').value;
+                const fecha = document.getElementById('swal-eval-fecha').value;
+                const numPreguntas = parseInt(document.getElementById('swal-eval-preguntas').value);
+                const pauta = document.getElementById('swal-eval-pauta').value.trim().toUpperCase();
+                
+                if (!nombre || !numPreguntas) {
+                    Swal.showValidationMessage('Nombre y N° de preguntas son obligatorios');
+                    return false;
+                }
+                if (pauta && pauta.length !== numPreguntas) {
+                    Swal.showValidationMessage(`La pauta debe tener exactamente ${numPreguntas} letras (tienes ${pauta.length})`);
+                    return false;
+                }
+                return { nombre, idCurso, fecha, numPreguntas, pauta };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'add_evaluacion', payload: formValues })
+            }).then(() => {
+                const newId = "EVAL-" + new Date().getTime();
+                this.evaluacionesData.push([newId, formValues.nombre, formValues.idCurso, formValues.fecha, formValues.numPreguntas, formValues.pauta, 'Activa']);
+                this.renderEvaluaciones(this.evaluacionesData);
+                Swal.fire('¡Creada!', `La evaluación "${formValues.nombre}" ha sido guardada en Google Sheets.`, 'success');
+            });
+        }
+    }
+
+    deleteEval(idEval, nombre) {
+        Swal.fire({
+            title: '¿Eliminar evaluación?',
+            text: `Se eliminará "${nombre}" y su pauta de respuestas.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#334155',
+            confirmButtonText: '¡Sí, eliminar!',
+            cancelButtonText: 'Cancelar'
+        }).then(result => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ action: 'delete_evaluacion', payload: { idEvaluacion: idEval, nombre: nombre } })
+                }).then(() => {
+                    this.evaluacionesData = this.evaluacionesData.filter(e => e[0] !== idEval);
+                    this.renderEvaluaciones(this.evaluacionesData);
+                    Swal.fire('Eliminada', 'La evaluación fue eliminada correctamente.', 'success');
+                });
+            }
+        });
+    }
+
+    iniciarEscaneo(idEval) {
+        this.activeEvaluacionId = idEval;
+        const eval_ = this.evaluacionesData.find(e => e[0] === idEval);
+        if (!eval_) return;
+        
+        const idCurso = eval_[2];
+        const alumnosCurso = this.alumnosData.filter(a => String(a[1]) === String(idCurso));
+        
+        if (alumnosCurso.length === 0) {
+            return Swal.fire('Atención', 'No hay alumnos en el curso asociado a esta evaluación.', 'warning');
+        }
+        
+        const opcionesAlumnos = alumnosCurso.map(a => `<option value="${a[2]}">${a[3] || 'Sin nombre'}</option>`).join('');
+        
+        Swal.fire({
+            title: '¿Quién es el alumno?',
+            html: `
+                <p style="color: var(--text-muted); margin-bottom: 12px;">Evaluación: <b>${eval_[1]}</b></p>
+                <select id="swal-scan-alumno" class="swal2-input" style="cursor:pointer;">
+                    ${opcionesAlumnos}
+                </select>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-camera"></i> Ir a Escanear',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => document.getElementById('swal-scan-alumno').value
+        }).then(result => {
+            if (result.isConfirmed) {
+                this.activeAlumnoRut = result.value;
+                this.navigateTo('escaner');
+            }
+        });
+    }
+
+    async editStudent(oldRut, oldNombre) {
+        if (!this.activeCursoId) return;
+
+        const { value: formValues } = await Swal.fire({
+            title: 'Editar Alumno',
+            html:
+                `<input id="swal-input-rut" class="swal2-input" value="${oldRut}" placeholder="RUT">` +
+                `<input id="swal-input-nombre" class="swal2-input" value="${oldNombre}" placeholder="Nombre Completo">`,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Guardar Cambios',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const rut = document.getElementById('swal-input-rut').value;
+                const nombre = document.getElementById('swal-input-nombre').value;
+                if (!rut || !nombre) {
+                    Swal.showValidationMessage('Por favor completa ambos campos');
+                    return false;
+                }
+                return { rut, nombre };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({ title: 'Actualizando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+            
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ 
+                    action: 'edit_alumno', 
+                    payload: { idCurso: this.activeCursoId, oldRut: oldRut, newRut: formValues.rut, newNombre: formValues.nombre } 
+                })
+            }).then(() => {
+                // Actualizar memoria
+                const alumno = this.alumnosData.find(a => a[2] === oldRut && String(a[1]) === String(this.activeCursoId));
+                if (alumno) {
+                    alumno[2] = formValues.rut;
+                    alumno[3] = formValues.nombre;
+                }
+                this.seleccionarCurso(this.activeCursoId);
+                Swal.fire('¡Actualizado!', 'Los datos del alumno han sido guardados.', 'success');
+            });
+        }
+    }
+
+    async importStudents() {
+        if (!this.activeCursoId) {
+            return Swal.fire('Atención', 'Primero debes seleccionar o crear un curso en la lista.', 'warning');
+        }
+
+        const { value: pastedText } = await Swal.fire({
+            title: 'Importar desde Excel',
+            input: 'textarea',
+            inputLabel: 'Copia desde tu Excel y pega aquí:',
+            inputPlaceholder: 'N° Lista (opcional)   |   RUT   |   Nombre Completo\n1    21.123.456-7    Juan Pérez',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-upload"></i> Importar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) return 'Debes pegar el texto de Excel';
+            }
+        });
+
+        if (pastedText) {
+            const lineas = pastedText.trim().split('\n');
+            const alumnosNuevos = [];
+            
+            lineas.forEach(linea => {
+                const columnas = linea.split('\t').map(c => c.trim());
+                if (columnas.length >= 2) {
+                    let rut = "", nombre = "";
+                    // Si tiene 3 columnas, asumimos N° Lista | RUT | Nombre
+                    if (columnas.length >= 3) {
+                        rut = columnas[1];
+                        nombre = columnas[2];
+                    } else {
+                        // Si tiene 2, asumimos RUT | Nombre
+                        rut = columnas[0];
+                        nombre = columnas[1];
+                    }
+                    
+                    if (rut && nombre && rut.toLowerCase() !== 'rut' && !rut.toLowerCase().includes('lista')) {
+                        alumnosNuevos.push({ rut, nombre });
+                    }
+                }
+            });
+
+            if (alumnosNuevos.length === 0) {
+                return Swal.fire('Error', 'No se detectaron datos válidos. Asegúrate de copiar las columnas de RUT y Nombre desde tu planilla.', 'error');
+            }
+
+            Swal.fire({ title: `Importando ${alumnosNuevos.length} alumnos...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'import_alumnos', payload: { idCurso: this.activeCursoId, alumnos: alumnosNuevos } })
+            }).then(() => {
+                alumnosNuevos.forEach(al => {
+                    this.alumnosData.push(['ALU-TEMP', this.activeCursoId, al.rut, al.nombre, 'N/A']);
+                });
+                this.seleccionarCurso(this.activeCursoId);
+                Swal.fire('¡Importación Exitosa!', `Se han importado ${alumnosNuevos.length} alumnos correctamente.`, 'success');
+            }).catch(() => {
+                Swal.fire('Error', 'Ocurrió un error en la conexión.', 'error');
+            });
+        }
+    }
+
+    initNavigation() {
+        console.log("🛠️ Iniciando Navegación v2.6...");
+        
+        // 1. Listeners de la barra lateral (Prioridad Máxima)
+        const navItems = document.querySelectorAll('.nav-links li');
+        navItems.forEach(item => {
+            item.style.cursor = 'pointer'; // Asegurar feedback visual
+            item.onclick = () => {
+                const targetId = item.getAttribute('data-target');
+                console.log("🖱️ Click en:", targetId);
+                if (targetId) this.navigateTo(targetId);
+            };
+        });
+
+        try {
+            this.setupManualEvents();
+        } catch(e) { console.error("Error en setupManualEvents:", e); }
+        
+        // 2. Lógica para cambiar de curso
+        const courseList = document.querySelector('.course-list');
+        if (courseList) {
+            courseList.onclick = (e) => {
+                const li = e.target.closest('li');
+                if (li) {
+                    const idCurso = li.getAttribute('data-id');
+                    if (idCurso) this.seleccionarCurso(idCurso);
+                }
+            };
+        }
+
+        // Inicializar estados
+        this.manualMode = false;
+        this.manualPoints = [];
+    }
+
+    navigateTo(viewId) {
+        console.log("🚀 Navegando a:", viewId);
+        
+        document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
+        const activeNav = document.querySelector(`.nav-links li[data-target="${viewId}"]`);
+        if(activeNav) activeNav.classList.add('active');
+
+        document.querySelectorAll('.view-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        const targetSection = document.getElementById(viewId);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        } else {
+            console.error("❌ No se encontró la sección:", viewId);
+        }
+
+        if (viewId === 'dashboard') {
+            this.initCharts();
+        }
+
+        if (viewId === 'escaner') {
+            this.initCamera();
+        } else {
+            this.stopCamera();
+        }
+    }
+
+    async initCamera() {
+        this.stopCamera(); // Detener si hay una corriendo
+        const overlay = document.querySelector('.scanner-overlay');
+        overlay.classList.remove('hidden');
+        overlay.innerHTML = `<p><i class="fa-solid fa-spinner fa-spin"></i> Iniciando cámara...</p>`;
+
+        try {
+            this.cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: this.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
+            });
+            
+            this.videoElement.srcObject = this.cameraStream;
+            
+            // Esperar a que el video empiece a reproducirse para conocer sus dimensiones
+            this.videoElement.onloadedmetadata = () => {
+                this.videoElement.play();
+                overlay.classList.add('hidden');
+                
+                // Ajustar tamaños de canvas al video
+                this.canvasElement.width = this.videoElement.videoWidth;
+                this.canvasElement.height = this.videoElement.videoHeight;
+                this.outputCanvas.width = this.videoElement.videoWidth;
+                this.outputCanvas.height = this.videoElement.videoHeight;
+                
+                this.startProcessing(); // Iniciar motor OMR en tiempo real
+            };
+            
+        } catch (error) {
+            console.error('Error accediendo a la cámara:', error);
+            overlay.innerHTML = `<p style="color: #ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Error al acceder a la cámara. Permite el acceso.</p>`;
+        }
+    }
+
+    stopCamera() {
+        this.processing = false;
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach(track => track.stop());
+            this.cameraStream = null;
+        }
+        // Limpiar canvas
+        const outCtx = this.outputCanvas.getContext('2d');
+        outCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+    }
+
+    // --- FASE 4: GRÁFICOS (CHART.JS) ---
+    initCharts() {
+        if (this.courseChart) return; // Ya inicializado
+        
+        const ctx = document.getElementById('course-chart');
+        if (!ctx) return;
+
+        this.courseChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Matemáticas', 'Lenguaje', 'Historia', 'Ciencias', 'Inglés'],
+                datasets: [{
+                    label: 'Promedio del Curso',
+                    data: [5.2, 5.8, 6.1, 4.9, 6.5],
+                    backgroundColor: 'rgba(99, 102, 241, 0.5)',
+                    borderColor: '#4f46e5',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 7.0, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#f8fafc' } }
+                }
+            }
+        });
+    }
+
+    // --- FASE 5: GENERACIÓN DE PDF ---
+    generateCoursePDF() {
+        Swal.fire({
+            title: 'Generando PDF',
+            text: 'Preparando el reporte global del curso...',
+            timer: 1500,
+            didOpen: () => { Swal.showLoading(); }
+        }).then(() => {
+            // Seleccionamos el panel completo para exportarlo a PDF
+            const element = document.querySelector('#dashboard');
+            const opt = {
+                margin:       0.5,
+                filename:     'Reporte_Curso_SeveducaZIP.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+            
+            html2pdf().set(opt).from(element).save();
+        });
+    }
+
+    generateStudentPDF(nota, alumno, fotoBase64) {
+        // Creamos un contenedor temporal invisible para el PDF del alumno
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <div id="pdf-template" style="padding: 40px; font-family: sans-serif; background: white; color: black; text-align: center;">
+                <h1 style="color: #4f46e5;">Reporte de Evaluación - SeveducaZIP</h1>
+                <hr style="border: 1px solid #eee;">
+                <h2>Alumno: ${alumno}</h2>
+                <div style="margin: 30px 0; font-size: 4rem; font-weight: bold; color: ${parseFloat(nota) >= 4.0 ? '#10b981' : '#ef4444'};">${nota}</div>
+                <p style="font-size: 1.2rem;">Captura de la prueba escaneada:</p>
+                <img src="${fotoBase64}" style="max-width: 100%; border: 2px solid #ccc; margin-top: 20px; border-radius: 8px;">
+                <p style="margin-top: 40px; color: #666; font-size: 0.8rem;">Generado por SeveducaZIP - ${new Date().toLocaleString()}</p>
+            </div>
+        `;
+
+        const opt = {
+            margin:       0.5,
+            filename:     `Prueba_${alumno.replace(' ','_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        // Generar y descargar localmente
+        html2pdf().set(opt).from(div).save().output('blob').then((blob) => {
+            // Convertir blob a base64 para enviarlo al Drive
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+                const base64data = reader.result.split(',')[1];
+                
+                // Enviar al Backend para guardar en Drive
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({
+                        action: 'guardar_pdf',
+                        payload: {
+                            base64: base64data,
+                            fileName: `Prueba_${alumno.replace(' ','_')}_${Date.now()}.pdf`,
+                            curso: '1 Medio A', // Podría ser dinámico
+                            alumno: alumno
+                        }
+                    })
+                });
+                
+                console.log('☁️ PDF enviado a Google Drive');
+                this.startProcessing(); // Reanudar escáner
+            };
+        });
+    }
+
+    // --- FASE 3: LÓGICA DE ESCANEO OMR (TIEMPO REAL) ---
+    startProcessing() {
+        if (!cvReady) {
+            setTimeout(() => this.startProcessing(), 500); 
+            return;
+        }
+        this.processing = true;
+        this.processFrame(); 
+    }
+
+    // Inicializa los eventos de click para el modo manual (una sola vez)
+    setupManualEvents() {
+        this.outputCanvas.addEventListener('click', (e) => {
+            if (!this.manualMode) return;
+            const rect = this.outputCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (this.outputCanvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (this.outputCanvas.height / rect.height);
+            
+            if (!this.manualPoints) this.manualPoints = [];
+            this.manualPoints.push({ x, y });
+            
+            if (this.manualPoints.length === 4) {
+                this.detectedFiducials = this.sortCorners(this.manualPoints);
+                this.manualPoints = [];
+                this.manualMode = false;
+                Swal.fire('¡Esquinas fijadas!', 'Ahora puedes presionar Calificar.', 'success');
+            } else {
+                Swal.fire({
+                    title: `Punto ${this.manualPoints.length}/4`,
+                    text: 'Toca la siguiente esquina de la hoja.',
+                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1000
+                });
+            }
+        });
+    }
+
+    toggleManualMode() {
+        this.manualMode = !this.manualMode;
+        this.manualPoints = [];
+        if (this.manualMode) {
+            Swal.fire('Modo Manual', 'Toca las 4 esquinas de la hoja en el video, en orden: Superior-Izquierda, Superior-Derecha, Inferior-Derecha, Inferior-Izquierda.', 'info');
+        }
+    }
+
+    processFrame() {
+        if (!this.processing) return;
+
+        try {
+            // 1. Dibujar el frame actual del video en el canvas oculto
+            this.ctx.drawImage(this.videoElement, 0, 0, this.canvasElement.width, this.canvasElement.height);
+            
+            // 2. Leer la imagen con OpenCV
+            let src = cv.imread(this.canvasElement);
+            let gray = new cv.Mat();
+            let blurred = new cv.Mat();
+            let edges = new cv.Mat();
+            
+            // 3. Preprocesamiento: Escala de grises, Desenfoque (para reducir ruido) y Detección de Bordes (Canny)
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
+            cv.Canny(blurred, edges, 75, 200);
+            
+            // 4. Encontrar contornos
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            
+            // 5. MODO FIDUCIAL HUNTER: Buscar marcadores negros directamente
+            let possibleFiducials = [];
+            for (let i = 0; i < contours.size(); i++) {
+                let cnt = contours.get(i);
+                let area = cv.contourArea(cnt);
+                if (area > 40 && area < 3000) { 
+                    let rect = cv.boundingRect(cnt);
+                    let ar = rect.width / rect.height;
+                    if (ar > 0.6 && ar < 1.4) {
+                        possibleFiducials.push({ 
+                            x: rect.x + rect.width/2, 
+                            y: rect.y + rect.height/2, 
+                            area: area 
+                        });
+                    }
+                }
+                cnt.delete();
+            }
+
+            let bestFoursome = this.detectedFiducials; // Mantener si ya se fijó manualmente
+            if (!this.manualMode && possibleFiducials.length >= 4) {
+                const tl = possibleFiducials.reduce((a, b) => (a.x + a.y < b.x + b.y) ? a : b);
+                const tr = possibleFiducials.reduce((a, b) => (a.x - a.y > b.x - b.y) ? a : b);
+                const br = possibleFiducials.reduce((a, b) => (a.x + a.y > b.x + b.y) ? a : b);
+                const bl = possibleFiducials.reduce((a, b) => (a.x - a.y < b.x - b.y) ? a : b);
+                
+                if (Math.abs(tr.x - tl.x) > 80 && Math.abs(bl.y - tl.y) > 80) {
+                    bestFoursome = [tl, tr, br, bl];
+                }
+            }
+
+            const outCtx = this.outputCanvas.getContext('2d');
+            outCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+            
+            if (this.manualMode && this.manualPoints) {
+                outCtx.fillStyle = 'yellow';
+                this.manualPoints.forEach(p => outCtx.fillRect(p.x-4, p.y-4, 8, 8));
+            }
+
+            if (bestFoursome) {
+                outCtx.lineWidth = 3;
+                outCtx.strokeStyle = '#0ea5e9'; 
+                bestFoursome.forEach(f => {
+                    outCtx.beginPath(); outCtx.arc(f.x, f.y, 10, 0, Math.PI * 2); outCtx.stroke();
+                });
+
+                outCtx.beginPath();
+                outCtx.moveTo(bestFoursome[0].x, bestFoursome[0].y);
+                outCtx.lineTo(bestFoursome[1].x, bestFoursome[1].y);
+                outCtx.lineTo(bestFoursome[2].x, bestFoursome[2].y);
+                outCtx.lineTo(bestFoursome[3].x, bestFoursome[3].y);
+                outCtx.closePath();
+                outCtx.fillStyle = 'rgba(14, 165, 233, 0.25)';
+                outCtx.fill();
+                
+                this.btnCapture.classList.add('ready');
+                this.btnCapture.innerHTML = `<i class="fa-solid fa-check"></i> Marcadores Listos - Calificar`;
+                this.detectedFiducials = bestFoursome;
+            } else {
+                this.btnCapture.classList.remove('ready');
+                this.btnCapture.innerHTML = this.manualMode ? `Toca las 4 esquinas...` : `<i class="fa-solid fa-crosshairs"></i> Buscando Marcadores...`;
+                this.detectedFiducials = null;
+            }
+
+            src.delete(); gray.delete(); blurred.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+        } catch (err) { console.warn("OMR Hunter Error:", err); }
+
+        // Programar el siguiente frame
+        requestAnimationFrame(() => this.processFrame());
+    }
+
+    // ================================================================
+    // MOTOR OMR REAL - Helpers
+    // ================================================================
+
+    // Busca los 4 marcadores negros (fiduciales) para una alineación perfecta
+    findFiducials(src, paperContour) {
+        let gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        let thresh = new cv.Mat();
+        cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, 10);
+
+        // Definir regiones de búsqueda en las 4 esquinas del papel detectado
+        const pts = [];
+        for (let i = 0; i < 4; i++) {
+            pts.push({ x: paperContour.data32S[i * 2], y: paperContour.data32S[i * 2 + 1] });
+        }
+        const sorted = this.sortCorners(pts); // [TL, TR, BR, BL]
+        
+        const fiducials = [];
+        const searchSize = 80; // px de búsqueda alrededor de cada esquina
+
+        sorted.forEach((corner, idx) => {
+            let x = Math.max(0, corner.x - searchSize/2);
+            let y = Math.max(0, corner.y - searchSize/2);
+            let w = Math.min(src.cols - x, searchSize);
+            let h = Math.min(src.rows - y, searchSize);
+            
+            let roi = thresh.roi(new cv.Rect(x, y, w, h));
+            let contours = new cv.MatVector(), hierarchy = new cv.Mat();
+            cv.findContours(roi, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            
+            let bestFid = null, maxA = 0;
+            for (let j = 0; j < contours.size(); j++) {
+                let cnt = contours.get(j);
+                let area = cv.contourArea(cnt);
+                let rect = cv.boundingRect(cnt);
+                let ar = rect.width / rect.height;
+                // Los fiduciales son cuadrados negros (~0.8cm)
+                if (area > 100 && ar > 0.7 && ar < 1.3 && area > maxA) {
+                    maxA = area;
+                    bestFid = { x: x + rect.x + rect.width/2, y: y + rect.y + rect.height/2 };
+                }
+                cnt.delete();
+            }
+            if (bestFid) fiducials.push(bestFid);
+            else fiducials.push(corner); // Fallback a la esquina del papel si no hay marcador
+            
+            roi.delete(); contours.delete(); hierarchy.delete();
+        });
+
+        gray.delete(); thresh.delete();
+        return fiducials;
+    }
+
+    // Warp basado en los 4 fiduciales (Alineación Profesional)
+    warpPerspectiveFiducial(src, fiducials) {
+        const W = 1000, H = 1400; // Resolución fija para el área entre marcadores
+        const [tl, tr, br, bl] = fiducials;
+        const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y]);
+        const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, W, 0, W, H, 0, H]);
+        const M = cv.getPerspectiveTransform(srcPts, dstPts);
+        const warped = new cv.Mat();
+        cv.warpPerspective(src, warped, M, new cv.Size(W, H));
+        srcPts.delete(); dstPts.delete(); M.delete();
+        return warped;
+    }
+
+    // Lee burbujas usando el sistema de coordenadas RELATIVO a los marcadores
+    readBubblesFiducial(warped, numPreguntas) {
+        const W = 1000, H = 1400;
+        // La distancia real entre centros de marcadores en la hoja es:
+        // X: 20cm (20.5 - 0.5)
+        // Y: 28.7cm (29.2 - 0.5)
+        const pxPerCm = W / 20; 
+
+        let gray = new cv.Mat();
+        cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY);
+        let thresh = new cv.Mat();
+        cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 21, 12);
+
+        // Coordenadas relativas al marcador TL (que es 0,0 en el warp)
+        // El contenido empieza a 0.2cm (padding) + 0.5cm (dist desde marcador a borde contenido)
+        const xOffsetContent = 0.7 * pxPerCm; 
+        const colStarts = [0, 4.7, 9.4, 14.1].map(c => xOffsetContent + c * pxPerCm);
+        
+        const qNumW = 0.6 * pxPerCm;  
+        const cellW = 0.77 * pxPerCm; 
+        const rowH  = 0.52 * pxPerCm; 
+        
+        // Y: Del marcador TL al inicio de la grilla hay aprox 6.0cm
+        const answersTopY = 6.0 * pxPerCm; 
+        const colHeaderH  = 0.4 * pxPerCm;
+
+        const colSize = Math.ceil(numPreguntas / 4);
+        const sampleR = Math.round(0.20 * pxPerCm); 
+        const FILL_THRESHOLD = 30; 
+
+        if (window.lastWarpedMat) window.lastWarpedMat.delete();
+        window.lastWarpedMat = warped.clone();
+
+        const answers = [];
+        for (let q = 0; q < numPreguntas; q++) {
+            const col    = Math.floor(q / colSize);
+            const rowIdx = q % colSize;
+            if (col >= 4) break;
+            const rowCY = answersTopY + colHeaderH + rowIdx * rowH + rowH / 2;
+
+            let maxF = 0, sel = null;
+            for (let b = 0; b < 5; b++) {
+                const bx = colStarts[col] + qNumW + cellW * (b + 0.5);
+                const by = rowCY;
+                const x0 = Math.max(0, Math.round(bx - sampleR)), y0 = Math.max(0, Math.round(by - sampleR));
+                const x1 = Math.min(W - 1, Math.round(bx + sampleR)), y1 = Math.min(H - 1, Math.round(by + sampleR));
+                
+                const roi = thresh.roi(new cv.Rect(x0, y0, x1 - x0, y1 - y0));
+                const fill = cv.mean(roi)[0];
+                roi.delete();
+                
+                if (fill > maxF) { maxF = fill; sel = ['A','B','C','D','E'][b]; }
+                cv.rectangle(window.lastWarpedMat, new cv.Point(x0, y0), new cv.Point(x1, y1), 
+                             fill > FILL_THRESHOLD ? new cv.Scalar(0, 255, 0, 255) : new cv.Scalar(255, 0, 0, 255), 1);
+            }
+            answers.push(maxF > FILL_THRESHOLD ? sel : null);
+        }
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = W; tempCanvas.height = H;
+        cv.imshow(tempCanvas, window.lastWarpedMat);
+        this.lastDebugImageURL = tempCanvas.toDataURL();
+
+        gray.delete(); thresh.delete();
+        return answers;
+    }
+
+    // ================================================================
+    // CAPTURA Y CALIFICACION - Motor OMR Real
+    // ================================================================
+    capturarYCalificar() {
+        if (!cvReady) {
+            Swal.fire('Error', 'El motor de escaneo (OpenCV) aun no esta cargado.', 'error');
+            return;
+        }
+        if (!this.activeEvaluacionId || !this.activeAlumnoRut) {
+            Swal.fire({
+                title: 'Configura el escaneo',
+                html: 'Ve a <b>Evaluaciones</b>, elige una evaluacion y presiona <b>"Escanear con esta pauta"</b>.',
+                icon: 'info'
+            });
+            return;
+        }
+
+        this.processing = false;
+
+        // Capturar frame
+        this.ctx.drawImage(this.videoElement, 0, 0, this.canvasElement.width, this.canvasElement.height);
+        const frameData = this.canvasElement.toDataURL('image/jpeg', 0.9);
+
+        // Detectar papel
+        let src = cv.imread(this.canvasElement);
+        let gray = new cv.Mat(), blurred = new cv.Mat(), edges = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+        cv.Canny(blurred, edges, 50, 180);
+        let contours = new cv.MatVector(), hierarchy = new cv.Mat();
+        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        let maxArea = 0, paperContour = null;
+        for (let i = 0; i < contours.size(); i++) {
+            const cnt = contours.get(i);
+            const area = cv.contourArea(cnt);
+            if (area > 30000) {
+                const peri = cv.arcLength(cnt, true);
+                const approx = new cv.Mat();
+                cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                
+                if (approx.rows === 4) {
+                    let rect = cv.minAreaRect(cnt);
+                    let w = rect.size.width;
+                    let h = rect.size.height;
+                    let ar = Math.max(w, h) / Math.min(w, h);
+                    
+                    // Filtro estricto de forma papel (A4 ~1.4)
+                    if (ar > 1.1 && ar < 1.8 && area > maxArea) {
+                        maxArea = area;
+                        if (paperContour) paperContour.delete();
+                        paperContour = approx;
+                    } else { approx.delete(); }
+                } else { approx.delete(); }
+            }
+            cnt.delete();
+        }
+        gray.delete(); blurred.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+
+        const eval_        = this.evaluacionesData.find(e => e[0] === this.activeEvaluacionId);
+        const alumno       = this.alumnosData.find(a => a[2] === this.activeAlumnoRut);
+        const evalNombre   = eval_ ? eval_[1] : 'Evaluacion';
+        const alumnoNombre = alumno ? alumno[3] : this.activeAlumnoRut;
+        const pautaStr     = (eval_ && eval_[5]) ? String(eval_[5]).toUpperCase() : '';
+        const numPreguntas = eval_ ? parseInt(eval_[4] || 10) : 10;
+
+        let notaGenerada, puntajeGenerado, respuestasAlumno;
+
+        if (this.detectedFiducials) {
+            Swal.fire({ title: 'Leyendo hoja...', html: 'Alineando marcadores...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                // 1. Usar los marcadores ya detectados en tiempo real
+                const warped = this.warpPerspectiveFiducial(src, this.detectedFiducials);
+                // 2. Leer burbujas
+                respuestasAlumno = this.readBubblesFiducial(warped, numPreguntas);
+                warped.delete();
+            } catch(e) {
+                console.warn('OMR error:', e);
+                respuestasAlumno = null;
+            }
+        } else {
+            src.delete();
+            Swal.fire({
+                title: 'Marcadores no detectados',
+                html: 'Asegúrate de que los 4 cuadrados negros de las esquinas sean visibles y estén iluminados.',
+                icon: 'warning',
+                confirmButtonText: 'Reintentar'
+            }).then(() => this.startProcessing());
+            return;
+        }
+
+            if (respuestasAlumno && pautaStr.length === numPreguntas) {
+                let correctas = 0;
+                respuestasAlumno.forEach((r, i) => { if (r === pautaStr[i]) correctas++; });
+                puntajeGenerado = correctas;
+                notaGenerada    = (1.0 + (correctas / numPreguntas) * 6.0).toFixed(1);
+            } else if (respuestasAlumno) {
+                puntajeGenerado = respuestasAlumno.filter(r => r).length;
+                notaGenerada    = 'S/N';
+            } else {
+                puntajeGenerado = 0; notaGenerada = 'Error';
+            }
+        } else {
+            src.delete();
+            Swal.fire({
+                title: 'Hoja no detectada',
+                html: 'No se detecto la hoja.<br>Mejora la iluminacion y centra la hoja en la camara.',
+                icon: 'warning',
+                confirmButtonText: 'Reintentar'
+            }).then(() => this.startProcessing());
+            return;
+        }
+        src.delete();
+
+        const aprobado = parseFloat(notaGenerada) >= 4.0;
+        const color    = aprobado ? '#10b981' : '#ef4444';
+
+        // Guardar en Sheets
+        if (notaGenerada !== 'S/N' && notaGenerada !== 'Error') {
+            fetch(GAS_URL, {
+                method: 'POST', mode: 'no-cors',
+                body: JSON.stringify({
+                    action: 'guardar_resultado',
+                    payload: {
+                        evaluacionId: this.activeEvaluacionId,
+                        rutAlumno: this.activeAlumnoRut,
+                        nota: notaGenerada,
+                        puntaje: puntajeGenerado,
+                        respuestas: { total: numPreguntas, correctas: puntajeGenerado, detalle: respuestasAlumno }
+                    }
+                })
+            }).then(() => { if (alumno) alumno[4] = notaGenerada; });
+        }
+
+        // Tabla comparativa primeras 20 preguntas
+        let tablaHTML = '';
+        if (respuestasAlumno && pautaStr.length === numPreguntas) {
+            const celdas = respuestasAlumno.slice(0, 20).map((r, i) => {
+                const ok = r === pautaStr[i];
+                return `<td style="padding:1px 4px;text-align:center;color:${ok ? '#10b981' : '#ef4444'}">${i+1}:${r||'?'}</td>`;
+            }).join('');
+            tablaHTML = `<div style="font-size:0.7rem;margin-top:8px"><table style="width:100%;border-collapse:collapse"><tr>${celdas}</tr></table><p style="color:#64748b;font-size:0.65rem">Primeras 20 de ${numPreguntas} preguntas</p></div>`;
+        }
+
+        setTimeout(() => {
+            Swal.fire({
+                title: '¡Hoja Calificada!',
+                html: `
+                    <div style="font-size:3.5rem;font-weight:bold;color:${color};margin:12px 0">${notaGenerada}</div>
+                    <p>Alumno: <b>${alumnoNombre}</b></p>
+                    <p>Evaluacion: <b>${evalNombre}</b></p>
+                    <p>Puntaje: <b>${puntajeGenerado}/${numPreguntas}</b></p>
+                    ${tablaHTML}
+                    <div id="omr-debug-container" style="margin-top:15px; border:1px solid #334155; border-radius:8px; overflow:hidden; display:none;">
+                        <p style="font-size:0.6rem; background:#1e293b; padding:4px; margin:0;">Vista de Calibración OMR</p>
+                        <img id="debug-omr-img" style="width:100%; height:auto; display:block; filter: brightness(1.2) contrast(1.2);">
+                    </div>
+                    <button class="btn-secondary" style="font-size:0.7rem; padding:4px 8px; margin-top:8px;" onclick="document.getElementById('omr-debug-container').style.display='block';">Ver Calibración</button>
+                    <hr style="border-color:rgba(255,255,255,0.1);margin:12px 0">
+                    <p style="font-size:0.8rem;color:#10b981"><i class="fa-solid fa-check"></i> Guardado en Google Sheets</p>
+                `,
+                icon: aprobado ? 'success' : 'warning',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-arrow-right"></i> Siguiente Hoja',
+                cancelButtonText:  '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
+                cancelButtonColor: '#0ea5e9'
+            }).then(result => {
+                if (result.dismiss === Swal.DismissReason.cancel) {
+                    this.generateStudentPDF(notaGenerada, alumnoNombre, frameData);
+                } else {
+                    this.startProcessing();
+                }
+            });
+        }, 600);
+    }
+}
+
+// Iniciar aplicacion
+const app = new AppController();
+
+</script>
+
+</body>
+</html>
