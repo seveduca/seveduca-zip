@@ -5,445 +5,319 @@
 <title>Hoja de Respuestas - SeveducaZIP</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  
-  body {
-    font-family: Arial, sans-serif;
-    background: white;
-    color: black;
-  }
 
-  .page {
+  body { font-family: Arial, sans-serif; background: white; color: black; }
+
+  /* === WRAPPER: grid 3x3 que coloca las esquinas en el flujo normal === */
+  .page-wrapper {
     width: 21cm;
     min-height: 29.7cm;
-    padding: 1cm;
-    position: relative;
+    display: grid;
+    grid-template-columns: 1cm 1fr 1cm;
+    grid-template-rows: 1cm 1fr 1cm;
     background: white;
   }
 
-  /* === MARCAS DE ESQUINA (Fiduciales para OpenCV) === */
-  .corner {
-    position: absolute;
-    width: 1.2cm;
-    height: 1.2cm;
-    background: black;
+  /* Celdas de esquina - en flujo normal, se imprimen siempre */
+  .corner-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .corner.tl { top: 0.4cm; left: 0.4cm; }
-  .corner.tr { top: 0.4cm; right: 0.4cm; }
-  .corner.bl { bottom: 0.4cm; left: 0.4cm; }
-  .corner.br { bottom: 0.4cm; right: 0.4cm; }
 
-  /* Marca interior blanca (donut) para identificación precisa */
-  .corner::after {
+  /* El marcador fiducial: cuadrado negro con hueco blanco (se ve desde cámara) */
+  .fiducial {
+    width: 0.85cm;
+    height: 0.85cm;
+    background: black;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .fiducial::after {
     content: '';
     position: absolute;
-    top: 0.25cm;
-    left: 0.25cm;
-    width: 0.5cm;
-    height: 0.5cm;
+    top: 0.18cm;
+    left: 0.18cm;
+    width: 0.35cm;
+    height: 0.35cm;
     background: white;
+  }
+
+  /* Celda del borde superior, inferior e izquierda/derecha — vacía */
+  .edge-cell { background: white; }
+
+  /* Celda de contenido principal (centro del grid) */
+  .content-cell {
+    padding: 0.1cm 0.2cm;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25cm;
   }
 
   /* === ENCABEZADO === */
   .header {
     text-align: center;
-    margin-bottom: 0.4cm;
     border-bottom: 2px solid black;
-    padding-bottom: 0.3cm;
-    margin-left: 1.4cm;
-    margin-right: 1.4cm;
+    padding-bottom: 0.2cm;
   }
-
-  .header h1 {
-    font-size: 14pt;
-    font-weight: bold;
-    letter-spacing: 2px;
-  }
-
-  .header .subtitle {
-    font-size: 8pt;
-    color: #444;
-    margin-top: 2px;
-  }
-
   .logo-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.2cm;
+    margin-bottom: 2px;
   }
+  .logo-bar span { font-size: 8pt; font-weight: bold; color: #333; }
+  .header h1 { font-size: 13pt; font-weight: bold; letter-spacing: 1.5px; }
+  .header .subtitle { font-size: 7.5pt; color: #555; }
 
-  .logo-text {
-    font-size: 10pt;
-    font-weight: bold;
-    color: #333;
-  }
-
-  /* === DATOS DEL ALUMNO === */
-  .student-info {
-    margin: 0.3cm 1.4cm;
+  /* === DATOS ALUMNO === */
+  .student-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 0.2cm;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 0.15cm 0.2cm;
   }
-
-  .field {
-    border-bottom: 1.5px solid black;
-    padding-bottom: 2px;
-  }
-
-  .field label {
-    font-size: 6.5pt;
-    font-weight: bold;
-    text-transform: uppercase;
-    color: #555;
-    display: block;
-    margin-bottom: 1px;
-  }
-
-  .field .line {
-    height: 0.5cm;
-    display: block;
-  }
+  .field { border-bottom: 1.5px solid black; }
+  .field label { font-size: 5.5pt; font-weight: bold; text-transform: uppercase; color: #666; display: block; }
+  .field .line { height: 0.42cm; display: block; }
 
   /* === INSTRUCCIONES === */
   .instructions {
-    margin: 0.2cm 1.4cm;
-    padding: 0.15cm 0.2cm;
-    border: 1px solid #999;
+    border: 1px solid #bbb;
     background: #f9f9f9;
-    font-size: 6pt;
+    padding: 0.1cm 0.15cm;
+    font-size: 5.8pt;
     display: flex;
-    gap: 0.4cm;
     align-items: center;
+    gap: 0.3cm;
   }
+  .bubble-ex { display: flex; gap: 4px; align-items: center; white-space: nowrap; }
+  .ex-b { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #555; display: inline-block; }
+  .ex-b.filled { background: black; }
 
-  .bubble-example {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
-
-  .ex-bubble {
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    border: 1.5px solid #333;
-    display: inline-block;
-  }
-  .ex-bubble.filled { background: black; }
-
-  /* === GRILLA DE RESPUESTAS === */
-  .answers-section {
-    margin: 0.3cm 1.4cm 0;
-  }
-
+  /* === GRILLA RESPUESTAS === */
   .columns-wrapper {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.3cm;
+    gap: 0.25cm;
+    flex: 1;
   }
-
-  .column {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .column-header {
+  .column { display: flex; flex-direction: column; }
+  .col-header {
     display: grid;
-    grid-template-columns: 1.8em repeat(5, 1fr);
+    grid-template-columns: 1.6em repeat(5, 1fr);
     text-align: center;
-    margin-bottom: 2px;
-    border-bottom: 1px solid #aaa;
+    border-bottom: 1px solid #999;
     padding-bottom: 1px;
+    margin-bottom: 1px;
   }
-
-  .column-header span {
-    font-size: 6.5pt;
-    font-weight: bold;
-    color: #333;
-  }
-
-  .question-row {
+  .col-header span { font-size: 6pt; font-weight: bold; color: #444; }
+  .q-row {
     display: grid;
-    grid-template-columns: 1.8em repeat(5, 1fr);
+    grid-template-columns: 1.6em repeat(5, 1fr);
     align-items: center;
-    height: 0.55cm;
+    height: 0.52cm;
     border-bottom: 0.5px solid #eee;
   }
-
-  .question-row:nth-child(odd) { background: #fafafa; }
-
-  .q-num {
-    font-size: 6.5pt;
-    font-weight: bold;
-    text-align: right;
-    padding-right: 3px;
-    color: #333;
-  }
-
-  .bubble-cell {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .bubble {
-    width: 0.42cm;
-    height: 0.42cm;
-    border-radius: 50%;
-    border: 1.5px solid #333;
+  .q-row:nth-child(even) { background: #f7f7f7; }
+  .q-num { font-size: 6pt; font-weight: bold; text-align: right; padding-right: 2px; color: #444; }
+  .bub-cell { display: flex; justify-content: center; align-items: center; }
+  .bub {
+    width: 0.38cm; height: 0.38cm;
+    border-radius: 50%; border: 1.5px solid #444;
     background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
   }
+  .bub-ltr { font-size: 4.5pt; font-weight: bold; color: #aaa; line-height: 1; }
 
-  .bubble-letter {
-    font-size: 5pt;
-    font-weight: bold;
-    color: #888;
-    line-height: 1;
-  }
-
-  /* === PIE DE PÁGINA === */
+  /* === PIE === */
   .footer {
-    margin-top: 0.3cm;
     text-align: center;
-    font-size: 6pt;
+    font-size: 5.5pt;
     color: #aaa;
-    border-top: 1px solid #eee;
-    padding-top: 0.15cm;
-    margin-left: 1.4cm;
-    margin-right: 1.4cm;
+    border-top: 1px solid #ddd;
+    padding-top: 0.1cm;
   }
 
-  /* === IMPRESIÓN === */
-  @media print {
-    body { margin: 0; }
-    .page {
-      width: 21cm;
-      min-height: 29.7cm;
-      padding: 0.8cm;
-    }
-    .no-print { display: none; }
-    button { display: none !important; }
-  }
-
-  /* === BOTÓN DE IMPRESIÓN (solo en pantalla) === */
+  /* === BARRA UI (sólo pantalla) === */
   .print-bar {
-    background: #1e293b;
-    color: white;
-    padding: 12px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    background: #1e293b; color: white;
+    padding: 10px 20px;
+    display: flex; justify-content: space-between; align-items: center;
   }
-
-  .print-bar h2 { font-size: 1rem; }
-
+  .print-bar h2 { font-size: 0.95rem; }
   .btn-print {
-    background: #4f46e5;
-    color: white;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: bold;
+    background: #4f46e5; color: white; border: none;
+    padding: 7px 18px; border-radius: 8px; cursor: pointer;
+    font-size: 0.85rem; font-weight: bold;
   }
-
   .btn-print:hover { background: #6366f1; }
 
-  .config-bar {
-    background: #0f172a;
-    color: white;
-    padding: 10px 24px;
-    display: flex;
-    gap: 20px;
-    align-items: center;
-    font-size: 0.85rem;
-    flex-wrap: wrap;
+  .cfg-bar {
+    background: #0f172a; color: white;
+    padding: 8px 20px;
+    display: flex; gap: 16px; align-items: center;
+    font-size: 0.8rem; flex-wrap: wrap;
+  }
+  .cfg-bar label { color: #94a3b8; margin-right: 3px; }
+  .cfg-bar input, .cfg-bar select {
+    background: #1e293b; border: 1px solid #334155;
+    color: white; padding: 3px 7px; border-radius: 4px;
+  }
+  .cfg-bar .btn-gen {
+    background: #10b981; color: white; border: none;
+    padding: 5px 12px; border-radius: 5px; cursor: pointer;
+    font-size: 0.75rem; font-weight: bold;
   }
 
-  .config-bar label { color: #94a3b8; margin-right: 4px; }
-
-  .config-bar input, .config-bar select {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-  }
-
-  .config-bar .btn-gen {
-    background: #10b981;
-    color: white;
-    border: none;
-    padding: 6px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: bold;
+  /* === IMPRESION === */
+  @media print {
+    .print-bar, .cfg-bar { display: none !important; }
+    body { margin: 0; background: white; }
+    .page-wrapper {
+      width: 100%;
+      min-height: 100vh;
+      page-break-inside: avoid;
+    }
+    /* Forzar que los backgrounds se impriman (marcadores negros) */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .q-row:nth-child(even) { background: #f7f7f7 !important; }
   }
 </style>
 </head>
 <body>
 
-<!-- BARRA CONFIGURACIÓN (solo en pantalla) -->
-<div class="print-bar no-print">
-  <h2>🗂️ SeveducaZIP — Hoja de Respuestas</h2>
+<!-- UI bar (no se imprime) -->
+<div class="print-bar">
+  <h2>⚡ SeveducaZIP — Hoja de Respuestas</h2>
   <button class="btn-print" onclick="window.print()">🖨️ Imprimir Hoja</button>
 </div>
-<div class="config-bar no-print">
-  <div>
-    <label>N° Preguntas:</label>
-    <select id="cfg-preguntas" onchange="generarHoja()">
-      <option value="20">20</option>
-      <option value="25">25</option>
-      <option value="30">30</option>
-      <option value="40" selected>40</option>
-      <option value="50">50</option>
-      <option value="60">60</option>
+<div class="cfg-bar">
+  <div><label>N° Preguntas:</label>
+    <select id="cfg-n" onchange="gen()">
+      <option value="20">20</option><option value="25">25</option>
+      <option value="30">30</option><option value="40" selected>40</option>
+      <option value="50">50</option><option value="60">60</option>
     </select>
   </div>
-  <div>
-    <label>Asignatura:</label>
-    <input id="cfg-asignatura" type="text" value="Matemáticas" style="width:130px;" oninput="generarHoja()">
-  </div>
-  <div>
-    <label>Curso:</label>
-    <input id="cfg-curso" type="text" value="1° Básico" style="width:100px;" oninput="generarHoja()">
-  </div>
-  <div>
-    <label>Fecha:</label>
-    <input id="cfg-fecha" type="date" oninput="generarHoja()">
-  </div>
-  <button class="btn-gen" onclick="generarHoja()">↻ Actualizar</button>
+  <div><label>Asignatura:</label><input id="cfg-a" value="Matemáticas" style="width:120px" oninput="gen()"></div>
+  <div><label>Curso:</label><input id="cfg-c" value="1° Básico" style="width:90px" oninput="gen()"></div>
+  <div><label>Fecha:</label><input id="cfg-f" type="date" oninput="gen()"></div>
+  <button class="btn-gen" onclick="gen()">↻ Actualizar</button>
 </div>
 
-<!-- HOJA IMPRIMIBLE -->
-<div class="page" id="sheet">
-  <!-- Marcas de esquina fiduciales (CRÍTICAS para OpenCV) -->
-  <div class="corner tl"></div>
-  <div class="corner tr"></div>
-  <div class="corner bl"></div>
-  <div class="corner br"></div>
+<!-- HOJA IMPRIMIBLE — usa grid 3x3 para esquinas en flujo normal -->
+<div class="page-wrapper" id="sheet">
 
-  <!-- Encabezado -->
-  <div class="header">
-    <div class="logo-bar">
-      <span class="logo-text">⚡ SeveducaZIP</span>
-      <span style="font-size:7pt; color:#666;">ID: <b id="sheet-id"></b></span>
-    </div>
-    <h1>HOJA DE RESPUESTAS</h1>
-    <div class="subtitle" id="header-subtitle">Matemáticas &nbsp;|&nbsp; 1° Básico</div>
-  </div>
+  <!-- Fila 1: TL, borde sup, TR -->
+  <div class="corner-cell"><div class="fiducial"></div></div>
+  <div class="edge-cell"></div>
+  <div class="corner-cell"><div class="fiducial"></div></div>
 
-  <!-- Datos del alumno -->
-  <div class="student-info">
-    <div class="field" style="grid-column: span 3;">
-      <label>Nombre Completo del Alumno</label>
-      <span class="line"></span>
-    </div>
-    <div class="field">
-      <label>RUT</label>
-      <span class="line"></span>
-    </div>
-    <div class="field">
-      <label>Curso</label>
-      <span class="line"></span>
-    </div>
-    <div class="field">
-      <label>Fecha</label>
-      <span class="line"></span>
-    </div>
-  </div>
+  <!-- Fila 2: borde izq, CONTENIDO, borde der -->
+  <div class="edge-cell"></div>
 
-  <!-- Instrucciones -->
-  <div class="instructions">
-    <div>
-      <b>INSTRUCCIONES:</b> Rellene completamente la burbuja de su respuesta con lápiz o bolígrafo negro.
-      No marque fuera del círculo. Use una sola respuesta por pregunta.
+  <div class="content-cell">
+    <!-- Encabezado -->
+    <div class="header">
+      <div class="logo-bar">
+        <span>⚡ SeveducaZIP</span>
+        <span>ID: <b id="sheet-id"></b></span>
+      </div>
+      <h1>HOJA DE RESPUESTAS</h1>
+      <div class="subtitle" id="subtitle"></div>
     </div>
-    <div>
-      <div class="bubble-example">
-        <span>✗</span>
-        <div class="ex-bubble" style="border-color:#999;"></div>
-        &nbsp;
-        <span>✓</span>
-        <div class="ex-bubble filled"></div>
+
+    <!-- Datos del alumno -->
+    <div class="student-grid">
+      <div class="field" style="grid-column:span 4">
+        <label>Nombre Completo</label><span class="line"></span>
+      </div>
+      <div class="field"><label>RUT</label><span class="line"></span></div>
+      <div class="field"><label>Curso</label><span class="line"></span></div>
+      <div class="field"><label>Fecha</label><span class="line"></span></div>
+      <div class="field"><label>N° Lista</label><span class="line"></span></div>
+    </div>
+
+    <!-- Instrucciones -->
+    <div class="instructions">
+      <div>
+        <b>INSTRUCCIONES:</b> Rellene completamente la burbuja con lápiz o bolígrafo negro.
+        Una sola respuesta por pregunta. No doble ni manche la hoja.
+      </div>
+      <div class="bubble-ex">
+        ✗ <div class="ex-b"></div>&nbsp;&nbsp;✓ <div class="ex-b filled"></div>
       </div>
     </div>
+
+    <!-- Grilla de respuestas -->
+    <div class="columns-wrapper" id="grid"></div>
+
+    <!-- Pie de página -->
+    <div class="footer">
+      SeveducaZIP © 2026 — Escanee esta hoja con la aplicación SeveducaZIP para calificar automáticamente.
+    </div>
   </div>
 
-  <!-- Grilla de respuestas -->
-  <div class="answers-section">
-    <div class="columns-wrapper" id="answer-grid"></div>
-  </div>
+  <div class="edge-cell"></div>
 
-  <!-- Pie de página -->
-  <div class="footer">
-    SeveducaZIP © 2026 — No doble ni manche esta hoja. Escanee con la app SeveducaZIP.
-  </div>
+  <!-- Fila 3: BL, borde inf, BR -->
+  <div class="corner-cell"><div class="fiducial"></div></div>
+  <div class="edge-cell"></div>
+  <div class="corner-cell"><div class="fiducial"></div></div>
+
 </div>
 
 <script>
-  // Inicializar fecha de hoy
-  document.getElementById('cfg-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('cfg-f').value = new Date().toISOString().split('T')[0];
 
-  function generarHoja() {
-    const n = parseInt(document.getElementById('cfg-preguntas').value) || 40;
-    const asignatura = document.getElementById('cfg-asignatura').value || 'Evaluación';
-    const curso = document.getElementById('cfg-curso').value || '';
-    const fecha = document.getElementById('cfg-fecha').value;
-    const fechaStr = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-CL') : '';
+  function gen() {
+    const n  = parseInt(document.getElementById('cfg-n').value) || 40;
+    const a  = document.getElementById('cfg-a').value || 'Evaluacion';
+    const c  = document.getElementById('cfg-c').value || '';
+    const f  = document.getElementById('cfg-f').value;
+    const fs = f ? new Date(f + 'T00:00:00').toLocaleDateString('es-CL') : '';
 
-    // Actualizar encabezado
-    document.getElementById('header-subtitle').textContent =
-      asignatura + (curso ? ' \xa0|\xa0 ' + curso : '') + (fechaStr ? ' \xa0|\xa0 ' + fechaStr : '');
-    document.getElementById('sheet-id').textContent = 'SZ-' + Date.now().toString(36).toUpperCase();
+    document.getElementById('subtitle').textContent =
+      a + (c ? ' \xa0|\xa0 ' + c : '') + (fs ? ' \xa0|\xa0 ' + fs : '');
+    document.getElementById('sheet-id').textContent =
+      'SZ-' + Date.now().toString(36).toUpperCase().slice(-6);
 
-    // Generar columnas: dividir en 4 grupos
-    const grid = document.getElementById('answer-grid');
+    const grid = document.getElementById('grid');
     grid.innerHTML = '';
 
     const colSize = Math.ceil(n / 4);
+
     for (let col = 0; col < 4; col++) {
       const start = col * colSize + 1;
-      const end = Math.min(start + colSize - 1, n);
+      const end   = Math.min(start + colSize - 1, n);
       if (start > n) break;
 
-      const column = document.createElement('div');
-      column.className = 'column';
+      const colDiv = document.createElement('div');
+      colDiv.className = 'column';
 
       // Header
-      const header = document.createElement('div');
-      header.className = 'column-header';
-      header.innerHTML = '<span>#</span><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span>';
-      column.appendChild(header);
+      const hdr = document.createElement('div');
+      hdr.className = 'col-header';
+      hdr.innerHTML = '<span>#</span><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span>';
+      colDiv.appendChild(hdr);
 
-      // Preguntas
       for (let q = start; q <= end; q++) {
         const row = document.createElement('div');
-        row.className = 'question-row';
+        row.className = 'q-row';
         row.innerHTML = `<span class="q-num">${q}</span>`;
-
-        ['A','B','C','D','E'].forEach(letra => {
+        ['A','B','C','D','E'].forEach(l => {
           const cell = document.createElement('div');
-          cell.className = 'bubble-cell';
-          cell.innerHTML = `<div class="bubble"><span class="bubble-letter">${letra}</span></div>`;
+          cell.className = 'bub-cell';
+          cell.innerHTML = `<div class="bub"><span class="bub-ltr">${l}</span></div>`;
           row.appendChild(cell);
         });
-
-        column.appendChild(row);
+        colDiv.appendChild(row);
       }
-
-      grid.appendChild(column);
+      grid.appendChild(colDiv);
     }
   }
 
-  // Generar al cargar
-  generarHoja();
+  gen();
 </script>
 </body>
 </html>
