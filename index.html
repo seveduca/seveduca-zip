@@ -332,6 +332,7 @@ button {
 .swal2-title { color: #fff !important; font-family: var(--font-main) !important; }
 .swal2-html-container { color: var(--text-muted) !important; font-family: var(--font-main) !important; }
 .swal2-confirm { background-color: var(--primary) !important; border-radius: 8px !important; }
+.swal2-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid var(--border-color) !important; color: #fff !important; }
 
 /* --- Estilos Módulos Cursos y Evaluaciones --- */
 .course-list { list-style: none; }
@@ -513,7 +514,7 @@ button {
                             <h1>Cursos y Alumnos</h1>
                             <p>Gestiona tu lista de estudiantes y cursos.</p>
                         </div>
-                        <button class="btn-primary" onclick="Swal.fire('Nuevo Curso', 'Funcionalidad para crear cursos pronto.', 'info')"><i class="fa-solid fa-plus"></i> Nuevo Curso</button>
+                        <button class="btn-primary" onclick="app.addCourse()"><i class="fa-solid fa-plus"></i> Nuevo Curso</button>
                     </div>
                     <div style="display: flex; gap: 24px; flex-wrap: wrap;">
                         <!-- Lista de cursos -->
@@ -530,7 +531,7 @@ button {
                         <div class="glass-panel" style="flex: 2; min-width: 400px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                                 <h3 style="font-size: 1.1rem;">Alumnos: 1° Medio A</h3>
-                                <button class="btn-secondary" style="font-size: 0.85rem;" onclick="Swal.fire('Añadir Alumno', 'Formulario en construcción.', 'info')"><i class="fa-solid fa-user-plus"></i> Añadir Alumno</button>
+                                <button class="btn-secondary" style="font-size: 0.85rem;" onclick="app.addStudent()"><i class="fa-solid fa-user-plus"></i> Añadir Alumno</button>
                             </div>
                             <div style="overflow-x: auto;">
                                 <table class="custom-table">
@@ -725,6 +726,73 @@ class AppController {
                 );
             }
         });
+    }
+
+    async addCourse() {
+        const { value: courseName } = await Swal.fire({
+            title: 'Nuevo Curso',
+            input: 'text',
+            inputLabel: 'Nombre del curso',
+            inputPlaceholder: 'Ej: 4° Medio B',
+            showCancelButton: true,
+            confirmButtonText: 'Crear Curso',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Debes ingresar un nombre para el curso'
+                }
+            }
+        });
+
+        if (courseName) {
+            // Simulamos agregar a la UI
+            const ul = document.querySelector('.course-list');
+            const li = document.createElement('li');
+            li.innerHTML = `<i class="fa-solid fa-book" style="margin-right:8px;"></i> ${courseName}`;
+            ul.appendChild(li);
+            
+            Swal.fire('¡Creado!', `El curso ${courseName} ha sido creado.`, 'success');
+        }
+    }
+
+    async addStudent() {
+        const { value: formValues } = await Swal.fire({
+            title: 'Añadir Alumno',
+            html:
+                '<input id="swal-input-rut" class="swal2-input" placeholder="RUT (Ej: 21.123.456-7)">' +
+                '<input id="swal-input-nombre" class="swal2-input" placeholder="Nombre Completo">',
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Guardar Alumno',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const rut = document.getElementById('swal-input-rut').value;
+                const nombre = document.getElementById('swal-input-nombre').value;
+                if (!rut || !nombre) {
+                    Swal.showValidationMessage('Por favor completa ambos campos');
+                    return false;
+                }
+                return { rut, nombre };
+            }
+        });
+
+        if (formValues) {
+            // Simulamos agregar a la UI
+            const tbody = document.querySelector('.custom-table tbody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${formValues.rut}</td>
+                <td>${formValues.nombre}</td>
+                <td><span style="color: var(--text-muted); font-weight: bold;">N/A</span></td>
+                <td>
+                    <button class="icon-btn"><i class="fa-solid fa-pen"></i></button>
+                    <button class="icon-btn danger" onclick="app.confirmDelete('alumno')"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+
+            Swal.fire('¡Añadido!', `El alumno ${formValues.nombre} ha sido registrado.`, 'success');
+        }
     }
 
     initNavigation() {
