@@ -62,8 +62,14 @@ function doPost(e) {
       case 'delete_alumno':
         response = deleteAlumno(data.payload);
         break;
+      case 'add_evaluacion':
+        response = addEvaluacion(data.payload);
+        break;
       case 'delete_evaluacion':
         response = deleteEvaluacion(data.payload);
+        break;
+      case 'guardar_resultado':
+        response = guardarResultado(data.payload);
         break;
       default:
         response = { success: false, error: "Acción no reconocida" };
@@ -196,12 +202,21 @@ function deleteAlumno(payload) {
   return { success: false, error: "Alumno no encontrado" };
 }
 
+function addEvaluacion(payload) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Evaluaciones');
+  const idEval = "EVAL-" + new Date().getTime();
+  // payload: { nombre, idCurso, fecha, numPreguntas, pauta (ej: "ABCDE...") }
+  sheet.appendRow([idEval, payload.nombre, payload.idCurso, payload.fecha, payload.numPreguntas, payload.pauta || "", "Activa"]);
+  return { success: true, id: idEval };
+}
+
 function deleteEvaluacion(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Evaluaciones');
   const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === payload.idEvaluacion || data[i][1] === payload.nombre) {
+  for (let i = 0; i < data.length; i++) {
+    if (String(data[i][0]) === String(payload.idEvaluacion) || String(data[i][1]) === String(payload.nombre)) {
       sheet.deleteRow(i + 1);
       return { success: true, message: "Evaluación eliminada" };
     }
@@ -211,20 +226,31 @@ function deleteEvaluacion(payload) {
 
 function guardarResultado(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Resultados');
+  const sheetResultados = ss.getSheetByName('Resultados');
   
-  // Guardamos los datos de la hoja escaneada
-  sheet.appendRow([
+  sheetResultados.appendRow([
     new Date(),
     payload.evaluacionId || "EVAL-001",
     payload.rutAlumno || "Desconocido",
     payload.nota || 0.0,
     payload.puntaje || 0,
     JSON.stringify(payload.respuestas || {}),
-    payload.pdfUrl || ""
+    ""
   ]);
   
-  return { success: true, message: "Resultado guardado correctamente en Sheets." };
+  // Actualizar la Ultima_Nota del alumno en la hoja Alumnos
+  if (payload.rutAlumno && payload.nota) {
+    const sheetAlumnos = ss.getSheetByName('Alumnos');
+    const dataAl = sheetAlumnos.getDataRange().getValues();
+    for (let i = 0; i < dataAl.length; i++) {
+      if (String(dataAl[i][2]).trim() === String(payload.rutAlumno).trim()) {
+        sheetAlumnos.getRange(i + 1, 5).setValue(payload.nota);
+        break;
+      }
+    }
+  }
+  
+  return { success: true, message: "Resultado guardado correctamente." };
 }
 
 // --- FUNCIONES DE ALMACENAMIENTO (DRIVE) ---

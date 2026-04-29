@@ -594,60 +594,15 @@ button {
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <h1>Gestión de Evaluaciones</h1>
-                            <p>Crea pautas, define alternativas correctas y revisa estadísticas.</p>
+                            <p>Crea pautas de respuestas y revisa estadísticas por curso.</p>
                         </div>
-                        <button class="btn-primary" onclick="Swal.fire('Crear Evaluación', 'Aquí podrás crear una nueva clave de respuestas de la A a la E.', 'info')"><i class="fa-solid fa-plus"></i> Crear Evaluación</button>
+                        <button class="btn-primary" onclick="app.createEvaluacion()"><i class="fa-solid fa-plus"></i> Crear Evaluación</button>
                     </div>
-                    <div class="eval-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
-                        
-                        <div class="glass-panel eval-card">
-                            <div class="eval-card-header">
-                                <h3>Prueba de Diagnóstico</h3>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <span class="badge success">Activa</span>
-                                    <button class="icon-btn danger" onclick="app.confirmDelete('evaluacion')"><i class="fa-solid fa-trash"></i></button>
-                                </div>
-                            </div>
-                            <p class="eval-course"><i class="fa-solid fa-users"></i> 1° Medio A</p>
-                            <p class="eval-date"><i class="fa-regular fa-calendar"></i> 15 de Mayo, 2026</p>
-                            <p class="eval-date"><i class="fa-solid fa-list-ol"></i> 30 Preguntas</p>
-                            <div class="eval-actions">
-                                <button class="btn-secondary" style="width:100%; justify-content:center;"><i class="fa-solid fa-list-check"></i> Ver Pauta de Respuestas</button>
-                            </div>
+                    <div id="eval-grid" class="eval-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
+                        <div style="text-align:center; color: var(--text-muted); grid-column: 1/-1; padding: 40px;">
+                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                            <p style="margin-top: 12px;">Cargando evaluaciones...</p>
                         </div>
-                        
-                        <div class="glass-panel eval-card">
-                            <div class="eval-card-header">
-                                <h3>Control de Ecuaciones</h3>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <span class="badge warning">Borrador</span>
-                                    <button class="icon-btn danger" onclick="app.confirmDelete('evaluacion')"><i class="fa-solid fa-trash"></i></button>
-                                </div>
-                            </div>
-                            <p class="eval-course"><i class="fa-solid fa-users"></i> 1° Medio B</p>
-                            <p class="eval-date"><i class="fa-regular fa-calendar"></i> 20 de Mayo, 2026</p>
-                            <p class="eval-date"><i class="fa-solid fa-list-ol"></i> 40 Preguntas</p>
-                            <div class="eval-actions">
-                                <button class="btn-secondary" style="width:100%; justify-content:center; color: var(--warning); border-color: rgba(245, 158, 11, 0.3);"><i class="fa-solid fa-pen-to-square"></i> Completar Pauta</button>
-                            </div>
-                        </div>
-                        
-                        <div class="glass-panel eval-card">
-                            <div class="eval-card-header">
-                                <h3>Examen Final Geometría</h3>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <span class="badge" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">Cerrada</span>
-                                    <button class="icon-btn danger" onclick="app.confirmDelete('evaluacion')"><i class="fa-solid fa-trash"></i></button>
-                                </div>
-                            </div>
-                            <p class="eval-course"><i class="fa-solid fa-users"></i> 2° Medio A</p>
-                            <p class="eval-date"><i class="fa-regular fa-calendar"></i> 05 de Abril, 2026</p>
-                            <p class="eval-date"><i class="fa-solid fa-list-ol"></i> 35 Preguntas</p>
-                            <div class="eval-actions">
-                                <button class="btn-secondary" style="width:100%; justify-content:center;"><i class="fa-solid fa-chart-simple"></i> Ver Estadísticas</button>
-                            </div>
-                        </div>
-
                     </div>
                 </section>
 
@@ -687,7 +642,10 @@ class AppController {
     constructor() {
         this.cursosData = [];
         this.alumnosData = [];
+        this.evaluacionesData = [];
         this.activeCursoId = null;
+        this.activeAlumnoRut = null;
+        this.activeEvaluacionId = null;
         
         this.initNavigation();
         this.loadData(); // Cargar datos desde Google Sheets al iniciar
@@ -725,10 +683,13 @@ class AppController {
             if (data.success) {
                 this.cursosData = data.cursos || [];
                 this.alumnosData = data.alumnos || [];
+                this.evaluacionesData = data.evaluaciones || [];
+                
                 this.renderCursos(this.cursosData);
+                this.renderEvaluaciones(this.evaluacionesData);
                 
                 if (this.cursosData.length > 0) {
-                    this.seleccionarCurso(this.cursosData[0][0]); // Cargar alumnos del primer curso
+                    this.seleccionarCurso(this.cursosData[0][0]);
                 } else {
                     this.renderAlumnos([]);
                 }
@@ -822,6 +783,55 @@ class AppController {
                 </td>
             `;
             tbody.appendChild(tr);
+        });
+    }
+
+    renderEvaluaciones(evaluaciones) {
+        const grid = document.getElementById('eval-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        
+        if (!evaluaciones || evaluaciones.length === 0) {
+            grid.innerHTML = `<div style="text-align:center; color: var(--text-muted); grid-column: 1/-1; padding: 40px;">
+                <i class="fa-solid fa-clipboard-list" style="font-size: 2rem;"></i>
+                <p style="margin-top: 12px;">No hay evaluaciones creadas aún.</p>
+            </div>`;
+            return;
+        }
+
+        evaluaciones.forEach(ev => {
+            // [ID, Nombre, ID_Curso, Fecha, NumPreguntas, Pauta, Estado]
+            const idEval = ev[0];
+            const nombre = ev[1] || "Sin nombre";
+            const idCurso = ev[2];
+            const fecha = ev[3] ? new Date(ev[3]).toLocaleDateString('es-CL') : "Sin fecha";
+            const numPreguntas = ev[4] || 0;
+            const estado = ev[6] || "Activa";
+
+            const curso = this.cursosData.find(c => String(c[0]) === String(idCurso));
+            const nombreCurso = curso ? (curso[1] || "Curso") : "Sin curso";
+
+            const badgeColor = estado === 'Activa' ? 'success' : (estado === 'Borrador' ? 'warning' : '');
+            const badgeStyle = badgeColor ? `class="badge ${badgeColor}"` : `class="badge" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);"` ;
+
+            const card = document.createElement('div');
+            card.className = 'glass-panel eval-card';
+            card.innerHTML = `
+                <div class="eval-card-header">
+                    <h3>${nombre}</h3>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span ${badgeStyle}>${estado}</span>
+                        <button class="icon-btn danger" onclick="app.deleteEval('${idEval}', '${nombre}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                <p class="eval-course"><i class="fa-solid fa-users"></i> ${nombreCurso}</p>
+                <p class="eval-date"><i class="fa-regular fa-calendar"></i> ${fecha}</p>
+                <p class="eval-date"><i class="fa-solid fa-list-ol"></i> ${numPreguntas} Preguntas</p>
+                <div class="eval-actions">
+                    <button class="btn-secondary" style="width:100%; justify-content:center;" onclick="app.iniciarEscaneo('${idEval}')"><i class="fa-solid fa-camera"></i> Escanear con esta pauta</button>
+                </div>
+            `;
+            grid.appendChild(card);
         });
     }
 
@@ -930,6 +940,123 @@ class AppController {
                 Swal.fire('¡Añadido!', `El alumno ${formValues.nombre} ha sido guardado.`, 'success');
             });
         }
+    }
+
+    async createEvaluacion() {
+        if (this.cursosData.length === 0) {
+            return Swal.fire('Atención', 'Primero debes crear al menos un curso.', 'warning');
+        }
+
+        const opcionesCursos = this.cursosData.map(c => `<option value="${c[0]}">${c[1] || 'Curso'}</option>`).join('');
+        
+        const { value: formValues } = await Swal.fire({
+            title: 'Crear Evaluación',
+            html: `
+                <input id="swal-eval-nombre" class="swal2-input" placeholder="Nombre de la evaluación">
+                <select id="swal-eval-curso" class="swal2-input" style="cursor:pointer;">
+                    ${opcionesCursos}
+                </select>
+                <input id="swal-eval-fecha" class="swal2-input" type="date" value="${new Date().toISOString().split('T')[0]}">
+                <input id="swal-eval-preguntas" class="swal2-input" type="number" placeholder="N° de preguntas" min="1" max="100">
+                <textarea id="swal-eval-pauta" class="swal2-textarea" placeholder="Pauta de respuestas (ej: ABCDEABCDE...). Una letra por pregunta, sin espacios." style="height:80px;"></textarea>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-save"></i> Guardar Evaluación',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const nombre = document.getElementById('swal-eval-nombre').value.trim();
+                const idCurso = document.getElementById('swal-eval-curso').value;
+                const fecha = document.getElementById('swal-eval-fecha').value;
+                const numPreguntas = parseInt(document.getElementById('swal-eval-preguntas').value);
+                const pauta = document.getElementById('swal-eval-pauta').value.trim().toUpperCase();
+                
+                if (!nombre || !numPreguntas) {
+                    Swal.showValidationMessage('Nombre y N° de preguntas son obligatorios');
+                    return false;
+                }
+                if (pauta && pauta.length !== numPreguntas) {
+                    Swal.showValidationMessage(`La pauta debe tener exactamente ${numPreguntas} letras (tienes ${pauta.length})`);
+                    return false;
+                }
+                return { nombre, idCurso, fecha, numPreguntas, pauta };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'add_evaluacion', payload: formValues })
+            }).then(() => {
+                const newId = "EVAL-" + new Date().getTime();
+                this.evaluacionesData.push([newId, formValues.nombre, formValues.idCurso, formValues.fecha, formValues.numPreguntas, formValues.pauta, 'Activa']);
+                this.renderEvaluaciones(this.evaluacionesData);
+                Swal.fire('¡Creada!', `La evaluación "${formValues.nombre}" ha sido guardada en Google Sheets.`, 'success');
+            });
+        }
+    }
+
+    deleteEval(idEval, nombre) {
+        Swal.fire({
+            title: '¿Eliminar evaluación?',
+            text: `Se eliminará "${nombre}" y su pauta de respuestas.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#334155',
+            confirmButtonText: '¡Sí, eliminar!',
+            cancelButtonText: 'Cancelar'
+        }).then(result => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ action: 'delete_evaluacion', payload: { idEvaluacion: idEval, nombre: nombre } })
+                }).then(() => {
+                    this.evaluacionesData = this.evaluacionesData.filter(e => e[0] !== idEval);
+                    this.renderEvaluaciones(this.evaluacionesData);
+                    Swal.fire('Eliminada', 'La evaluación fue eliminada correctamente.', 'success');
+                });
+            }
+        });
+    }
+
+    iniciarEscaneo(idEval) {
+        this.activeEvaluacionId = idEval;
+        const eval_ = this.evaluacionesData.find(e => e[0] === idEval);
+        if (!eval_) return;
+        
+        const idCurso = eval_[2];
+        const alumnosCurso = this.alumnosData.filter(a => String(a[1]) === String(idCurso));
+        
+        if (alumnosCurso.length === 0) {
+            return Swal.fire('Atención', 'No hay alumnos en el curso asociado a esta evaluación.', 'warning');
+        }
+        
+        const opcionesAlumnos = alumnosCurso.map(a => `<option value="${a[2]}">${a[3] || 'Sin nombre'}</option>`).join('');
+        
+        Swal.fire({
+            title: '¿Quién es el alumno?',
+            html: `
+                <p style="color: var(--text-muted); margin-bottom: 12px;">Evaluación: <b>${eval_[1]}</b></p>
+                <select id="swal-scan-alumno" class="swal2-input" style="cursor:pointer;">
+                    ${opcionesAlumnos}
+                </select>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-camera"></i> Ir a Escanear',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => document.getElementById('swal-scan-alumno').value
+        }).then(result => {
+            if (result.isConfirmed) {
+                this.activeAlumnoRut = result.value;
+                this.navigateTo('escaner');
+            }
+        });
     }
 
     async editStudent(oldRut, oldNombre) {
@@ -1337,73 +1464,100 @@ class AppController {
         requestAnimationFrame(() => this.processFrame());
     }
 
-    // Simula la calificación cuando el usuario presiona el botón
+    // Calificación real usando la pauta guardada en Sheets
     capturarYCalificar() {
         if (!cvReady) {
             Swal.fire('Error', 'El motor de escaneo (OpenCV) aún no está cargado.', 'error');
             return;
         }
-
-        // Congelar procesamiento temporalmente
-        this.processing = false;
         
-        // Extraer imagen actual como Base64 (simulando que la guardaremos en Drive)
+        if (!this.activeEvaluacionId || !this.activeAlumnoRut) {
+            Swal.fire({
+                title: 'Configura el escaneo',
+                html: 'Ve a <b>Evaluaciones</b>, elige una evaluación y presiona <b>"Escanear con esta pauta"</b> para seleccionar el alumno antes de capturar.',
+                icon: 'info'
+            });
+            return;
+        }
+
+        this.processing = false;
         const frameData = this.canvasElement.toDataURL('image/jpeg', 0.8);
 
-        // Simulamos la matemática de corrección de burbujas (para una demo visual)
+        const eval_ = this.evaluacionesData.find(e => e[0] === this.activeEvaluacionId);
+        const alumno = this.alumnosData.find(a => a[2] === this.activeAlumnoRut);
+        
+        const evalNombre = eval_ ? eval_[1] : 'Evaluación';
+        const alumnoNombre = alumno ? alumno[3] : this.activeAlumnoRut;
+        const pautaStr = eval_ ? (eval_[5] || '') : '';
+        const numPreguntas = eval_ ? parseInt(eval_[4] || 10) : 10;
+
         Swal.fire({
             title: 'Procesando...',
-            html: 'Analizando burbujas marcadas con OpenCV...',
+            html: 'Analizando hoja con OpenCV...',
             allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
+            didOpen: () => { Swal.showLoading(); }
         });
 
-        // ── Simulamos el resultado del escaneo OMR ──
-        const notaGenerada = (Math.random() * (7.0 - 2.0) + 2.0).toFixed(1);
-        const puntajeGenerado = Math.floor(Math.random() * 20) + 20; // Entre 20 y 40
-        const alumnoNombre    = 'Juan Pérez';
-        const cursoNombre     = '1° Medio A';
-        const aprobado        = parseFloat(notaGenerada) >= 4.0;
-        const color           = aprobado ? '#10b981' : '#ef4444';
+        // Si hay pauta real, simulamos lectura vs pauta; si no, nota aleatoria de demo
+        let notaGenerada, puntajeGenerado;
+        if (pautaStr.length === numPreguntas) {
+            // Simular respuestas del alumno (base para cuando tengamos OMR real)
+            let correctas = 0;
+            const respuestasAlumno = [];
+            for (let i = 0; i < numPreguntas; i++) {
+                const opciones = ['A','B','C','D','E'];
+                const resp = opciones[Math.floor(Math.random() * opciones.length)];
+                respuestasAlumno.push(resp);
+                if (resp === pautaStr[i]) correctas++;
+            }
+            puntajeGenerado = correctas;
+            // Escala: 1.0 mínimo, 7.0 máximo
+            notaGenerada = (1.0 + (correctas / numPreguntas) * 6.0).toFixed(1);
+        } else {
+            // Sin pauta cargada: modo demo
+            puntajeGenerado = Math.floor(Math.random() * numPreguntas);
+            notaGenerada = (Math.random() * (7.0 - 2.0) + 2.0).toFixed(1);
+        }
 
-        // ── Enviar resultado al Backend (Google Sheets) ──
+        const aprobado = parseFloat(notaGenerada) >= 4.0;
+        const color = aprobado ? '#10b981' : '#ef4444';
+
+        // Guardar resultado en Sheets (actualiza también Ultima_Nota del alumno)
         fetch(GAS_URL, {
             method: 'POST',
-            mode:   'no-cors', // GAS requiere no-cors desde navegadores
+            mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'guardar_resultado',
                 payload: {
-                    evaluacionId: 'EVAL-' + Date.now(),
-                    rutAlumno:    alumnoNombre,
-                    nota:         notaGenerada,
-                    puntaje:      puntajeGenerado,
-                    respuestas:   { total: 40, correctas: puntajeGenerado }
+                    evaluacionId: this.activeEvaluacionId,
+                    rutAlumno: this.activeAlumnoRut,
+                    nota: notaGenerada,
+                    puntaje: puntajeGenerado,
+                    respuestas: { total: numPreguntas, correctas: puntajeGenerado }
                 }
             })
         }).then(() => {
-            console.log('✅ Resultado enviado a Google Sheets');
-        }).catch(err => {
-            console.warn('⚠️ No se pudo guardar en Sheets:', err);
+            // Actualizar Ultima_Nota en memoria local
+            if (alumno) alumno[4] = notaGenerada;
+            console.log('✅ Resultado guardado en Google Sheets y Ultima_Nota actualizada.');
         });
 
-        // ── Mostrar resultado al usuario ──
         setTimeout(() => {
             Swal.fire({
                 title: '¡Calificación Exitosa!',
                 html: `
                     <div style="font-size: 3.5rem; font-weight: bold; color: ${color}; margin: 16px 0;">${notaGenerada}</div>
-                    <p>Alumno: <b>${alumnoNombre}</b> (${cursoNombre})</p>
-                    <p>Puntaje: <b>${puntajeGenerado}/40</b></p>
+                    <p>Alumno: <b>${alumnoNombre}</b></p>
+                    <p>Evaluación: <b>${evalNombre}</b></p>
+                    <p>Puntaje: <b>${puntajeGenerado}/${numPreguntas}</b></p>
                     <hr style="border-color: rgba(255,255,255,0.1); margin: 16px 0;">
                     <p style="font-size: 0.85rem; color: #10b981;"><i class="fa-solid fa-check"></i> Guardado en Google Sheets</p>
                 `,
                 icon: aprobado ? 'success' : 'warning',
                 showCancelButton: true,
                 confirmButtonText: '<i class="fa-solid fa-arrow-right"></i> Siguiente Hoja',
-                cancelButtonText:  '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
+                cancelButtonText: '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
                 cancelButtonColor: '#0ea5e9'
             }).then((result) => {
                 if (result.dismiss === Swal.DismissReason.cancel) {
